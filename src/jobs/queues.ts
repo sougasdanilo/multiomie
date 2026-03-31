@@ -1,10 +1,10 @@
 ﻿// Jobs simplificados - sem Redis/BullMQ
 // Processamento sincrono direto
 
-import { ClienteService } from '../services/ClienteService';
-import { ProdutoService } from '../services/ProdutoService';
-import { PedidoService } from '../services/PedidoService';
-import { logger } from '../middlewares/logger';
+import { ClienteService } from '../services/ClienteService.js';
+import { ProdutoService } from '../services/ProdutoService.js';
+import { PedidoService } from '../services/PedidoService.js';
+import { logger } from '../middlewares/logger.js';
 
 // Tipos de jobs
 interface SincronizarClienteJob {

@@ -1,8 +1,8 @@
-import { prisma } from '../config/database';
-import { OmieIntegrationService } from '../integrations/OmieServices';
-import { ClienteService } from './ClienteService';
-import { ProdutoService } from './ProdutoService';
-import { Pedido, PedidoItem, PedidoEmpresa, PedidoStatus, Endereco } from '../entities';
+import { prisma } from '../config/database.js';
+import { OmieIntegrationService } from '../integrations/OmieServices.js';
+import { ClienteService } from './ClienteService.js';
+import { ProdutoService } from './ProdutoService.js';
+import { Pedido, PedidoItem, PedidoEmpresa, PedidoStatus, Endereco } from '../entities/index.js';
 import { format, addDays } from 'date-fns';
 
 export interface CreatePedidoItemDTO {

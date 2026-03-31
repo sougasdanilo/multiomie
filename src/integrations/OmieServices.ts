@@ -1,6 +1,6 @@
-import { OmieClient, OmieClientFactory, OmieApiError } from './OmieClient';
-import { Empresa } from '../entities';
-import { prisma } from '../config/database';
+import { OmieClient, OmieClientFactory, OmieApiError } from './OmieClient.js';
+import { Empresa } from '../entities/index.js';
+import { prisma } from '../config/database.js';
 
 export class OmieClienteService {
   constructor(private omieClient: OmieClient) {}
@@ -15,7 +15,7 @@ export class OmieClienteService {
 
   async consultar(cnpjCpf: string): Promise<any | null> {
     try {
-      const response = await this.omieClient.call('geral/clientes', 'ConsultarCliente', {
+      const response = await this.omieClient.call<any>('geral/clientes', 'ConsultarCliente', {
         cnpj_cpf: cnpjCpf.replace(/[^0-9]/g, '')
       });
       return response.cliente_cadastro;
@@ -40,7 +40,7 @@ export class OmieProdutoService {
   constructor(private omieClient: OmieClient) {}
 
   async consultar(codigoProduto: string): Promise<any> {
-    const response = await this.omieClient.call('geral/produtos', 'ConsultarProduto', {
+    const response = await this.omieClient.call<any>('geral/produtos', 'ConsultarProduto', {
       codigo: codigoProduto
     });
     return response.produto_servico_cadastro;
@@ -74,7 +74,7 @@ export class OmiePedidoService {
   }
 
   async consultar(codigoPedido: string): Promise<any> {
-    const response = await this.omieClient.call('produtos/pedido', 'ConsultarPedido', {
+    const response = await this.omieClient.call<any>('produtos/pedido', 'ConsultarPedido', {
       codigo_pedido: codigoPedido
     });
     return response.pedido_venda_produto;
@@ -99,7 +99,7 @@ export class OmieNfeService {
 
   async consultarPorPedido(codigoPedido: string): Promise<any | null> {
     try {
-      const response = await this.omieClient.call('produtos/nfconsultar', 'ConsultarNF', {
+      const response = await this.omieClient.call<any>('produtos/nfconsultar', 'ConsultarNF', {
         codigo_pedido: codigoPedido
       });
       return response.nfCadastro;

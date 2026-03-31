@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { ClienteController } from '../controllers/ClienteController';
-import { PedidoController } from '../controllers/PedidoController';
-import { ProdutoController } from '../controllers/ProdutoController';
-import { EmpresaController } from '../controllers/EmpresaController';
-import { SincronizacaoController } from '../controllers/SincronizacaoController';
-import { DashboardController } from '../controllers/DashboardController';
-import { WebhookController } from '../controllers/WebhookController';
-import { authMiddleware } from '../middlewares/auth';
-import { requestLogger } from '../middlewares/logger';
+import { ClienteController } from '../controllers/ClienteController.js';
+import { PedidoController } from '../controllers/PedidoController.js';
+import { ProdutoController } from '../controllers/ProdutoController.js';
+import { EmpresaController } from '../controllers/EmpresaController.js';
+import { SincronizacaoController } from '../controllers/SincronizacaoController.js';
+import { DashboardController } from '../controllers/DashboardController.js';
+import { WebhookController } from '../controllers/WebhookController.js';
+import { authMiddleware } from '../middlewares/auth.js';
+import { requestLogger } from '../middlewares/logger.js';
 
 const router = Router();
 

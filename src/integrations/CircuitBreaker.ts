@@ -1,5 +1,5 @@
 import CircuitBreaker from 'opossum';
-import { logger } from '../middlewares/logger';
+import { logger } from '../middlewares/logger.js';
 
 interface CircuitBreakerOptions {
   timeout?: number;

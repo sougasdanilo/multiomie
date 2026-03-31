@@ -1,7 +1,7 @@
-import { prisma } from '../config/database';
-import { Empresa } from '../entities';
-import { encrypt, decrypt } from '../utils/encryption';
-import { OmieIntegrationService } from '../integrations/OmieServices';
+import { prisma } from '../config/database.js';
+import { Empresa } from '../entities/index.js';
+import { encrypt, decrypt } from '../utils/encryption.js';
+import { OmieIntegrationService } from '../integrations/OmieServices.js';
 
 export interface CriarEmpresaDTO {
   nome: string;

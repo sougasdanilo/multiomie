@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { ClienteService } from '../services/ClienteService';
+import { ClienteService } from '../services/ClienteService.js';
 
 export class ClienteController {
   private clienteService: ClienteService;
@@ -49,6 +49,10 @@ export class ClienteController {
   async obterPorId(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID do cliente é obrigatório' });
+        return;
+      }
       const cliente = await this.clienteService.obterCliente(id);
       
       if (!cliente) {
@@ -74,6 +78,10 @@ export class ClienteController {
   async obterPorCpfCnpj(req: Request, res: Response): Promise<void> {
     try {
       const { cpfCnpj } = req.params;
+      if (!cpfCnpj) {
+        res.status(400).json({ success: false, error: 'CPF/CNPJ é obrigatório' });
+        return;
+      }
       const cliente = await this.clienteService.obterClientePorCpfCnpj(cpfCnpj);
       
       if (!cliente) {

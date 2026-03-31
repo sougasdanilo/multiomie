@@ -2,10 +2,13 @@
   "name": "multiomie-erp",
   "version": "1.0.0",
   "description": "ERP Multi-CNPJ com integração Omie",
+  "type": "module",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "build:frontend": "cd frontend && npm run build",
+    "build:full": "npm run build:frontend && npm run build",
     "start": "node dist/server.js",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",

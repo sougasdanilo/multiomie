@@ -4,16 +4,21 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-import { connectDatabase } from './config/database';
-import { initializeWorkers } from './jobs/queues';
-import { requestLogger, errorLogger } from './middlewares/logger';
-import routes from './routes';
+import { connectDatabase } from './config/database.js';
+import { initializeWorkers } from './jobs/queues.js';
+import { requestLogger, errorLogger } from './middlewares/logger.js';
+import routes from './routes/index.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middlewares de segurança
 app.use(helmet());
@@ -52,12 +57,13 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api', routes);
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Rota não encontrada'
-  });
+// Serve static files from frontend build
+const frontendPath = path.join(__dirname, '../frontend');
+app.use(express.static(frontendPath));
+
+// Fallback to index.html for SPA routes (must be after API routes)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 // Error logging

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { ProdutoService } from '../services/ProdutoService';
+import { ProdutoService } from '../services/ProdutoService.js';
 
 export class ProdutoController {
   private produtoService: ProdutoService;
@@ -11,6 +11,10 @@ export class ProdutoController {
   async sincronizarEmpresa(req: Request, res: Response): Promise<void> {
     try {
       const { empresaId } = req.params;
+      if (!empresaId) {
+        res.status(400).json({ success: false, error: 'ID da empresa é obrigatório' });
+        return;
+      }
       const resultado = await this.produtoService.sincronizarProdutosEmpresa(empresaId);
       
       res.json({
@@ -29,6 +33,10 @@ export class ProdutoController {
   async listarPorEmpresa(req: Request, res: Response): Promise<void> {
     try {
       const { empresaId } = req.params;
+      if (!empresaId) {
+        res.status(400).json({ success: false, error: 'ID da empresa é obrigatório' });
+        return;
+      }
       const skip = parseInt(req.query.skip as string) || 0;
       const take = parseInt(req.query.take as string) || 50;
       
@@ -50,6 +58,10 @@ export class ProdutoController {
   async consultarEstoque(req: Request, res: Response): Promise<void> {
     try {
       const { produtoId, empresaId } = req.params;
+      if (!produtoId || !empresaId) {
+        res.status(400).json({ success: false, error: 'ID do produto e ID da empresa são obrigatórios' });
+        return;
+      }
       const estoque = await this.produtoService.consultarEstoque(produtoId, empresaId);
       
       res.json({

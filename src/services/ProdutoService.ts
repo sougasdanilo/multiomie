@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
-import { prisma } from '../config/database';
-import { OmieIntegrationService } from '../integrations/OmieServices';
-import { Produto, ProdutoEmpresa, EstoqueInfo } from '../entities';
+import { prisma } from '../config/database.js';
+import { OmieIntegrationService } from '../integrations/OmieServices.js';
+import { Produto, ProdutoEmpresa, EstoqueInfo } from '../entities/index.js';
 
 export class ProdutoService {
   private omieIntegration: OmieIntegrationService;

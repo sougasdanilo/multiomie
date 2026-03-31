@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { Empresa } from '../entities';
-import { decrypt } from '../utils/encryption';
+import { Empresa } from '../entities/index.js';
+import { decrypt } from '../utils/encryption.js';
 
 export interface OmieRequest {
   call: string;

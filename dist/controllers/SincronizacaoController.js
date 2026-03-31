@@ -1,0 +1,211 @@
+import { prisma } from '../config/database.js';
+import { OmieIntegrationService } from '../integrations/OmieServices.js';
+import { agendarSincronizacaoProdutos, agendarProcessamentoPedido, agendarFaturamentoPedido } from '../jobs/queues.js';
+import { logger } from '../middlewares/logger.js';
+export class SincronizacaoController {
+    omieIntegration;
+    constructor() {
+        this.omieIntegration = new OmieIntegrationService();
+    }
+    async sincronizarProdutos(req, res) {
+        try {
+            const { empresaId } = req.params;
+            if (!empresaId) {
+                res.status(400).json({ success: false, error: 'ID da empresa é obrigatório' });
+                return;
+            }
+            const empresa = await prisma.empresa.findUnique({ where: { id: empresaId } });
+            if (!empresa) {
+                res.status(404).json({ success: false, error: 'Empresa não encontrada' });
+                return;
+            }
+            const job = await agendarSincronizacaoProdutos(empresaId);
+            res.json({
+                success: true,
+                data: {
+                    jobId: job.id,
+                    empresaId,
+                    status: 'scheduled'
+                },
+                message: 'Sincronização de produtos agendada com sucesso'
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message }, 'Erro ao agendar sincronização de produtos');
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+    async processarPedidoAsync(req, res) {
+        try {
+            const { pedidoId } = req.params;
+            const { delay = 0 } = req.body;
+            if (!pedidoId) {
+                res.status(400).json({ success: false, error: 'ID do pedido é obrigatório' });
+                return;
+            }
+            const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
+            if (!pedido) {
+                res.status(404).json({ success: false, error: 'Pedido não encontrado' });
+                return;
+            }
+            const job = await agendarProcessamentoPedido(pedidoId, delay);
+            res.json({
+                success: true,
+                data: {
+                    jobId: job.id,
+                    pedidoId,
+                    delay,
+                    status: 'scheduled'
+                },
+                message: 'Processamento de pedido agendado com sucesso'
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message }, 'Erro ao agendar processamento de pedido');
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+    async faturarPedidoAsync(req, res) {
+        try {
+            const { pedidoId } = req.params;
+            const { delay = 0 } = req.body;
+            if (!pedidoId) {
+                res.status(400).json({ success: false, error: 'ID do pedido é obrigatório' });
+                return;
+            }
+            const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
+            if (!pedido) {
+                res.status(404).json({ success: false, error: 'Pedido não encontrado' });
+                return;
+            }
+            const job = await agendarFaturamentoPedido(pedidoId, delay);
+            res.json({
+                success: true,
+                data: {
+                    jobId: job.id,
+                    pedidoId,
+                    delay,
+                    status: 'scheduled'
+                },
+                message: 'Faturamento de pedido agendado com sucesso'
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message }, 'Erro ao agendar faturamento de pedido');
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+    async sincronizarClientesTodasEmpresas(req, res) {
+        try {
+            const empresas = await prisma.empresa.findMany({ where: { ativa: true } });
+            const resultados = [];
+            for (const empresa of empresas) {
+                try {
+                    const omieService = this.omieIntegration.getClienteService({
+                        id: empresa.id,
+                        nome: empresa.nome,
+                        cnpj: empresa.cnpj,
+                        nomeFantasia: empresa.nome_fantasia || undefined,
+                        appKey: empresa.app_key,
+                        appSecret: empresa.app_secret,
+                        ativa: empresa.ativa,
+                        configuracoes: empresa.configuracoes,
+                        createdAt: empresa.created_at,
+                        updatedAt: empresa.updated_at
+                    });
+                    await omieService.listar(1, 1);
+                    resultados.push({
+                        empresaId: empresa.id,
+                        nome: empresa.nome,
+                        status: 'success'
+                    });
+                }
+                catch (error) {
+                    resultados.push({
+                        empresaId: empresa.id,
+                        nome: empresa.nome,
+                        status: 'error',
+                        error: error.message
+                    });
+                }
+            }
+            res.json({
+                success: true,
+                data: {
+                    totalEmpresas: empresas.length,
+                    resultados
+                }
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message }, 'Erro ao sincronizar clientes');
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+    async atualizarEstoqueEmpresa(req, res) {
+        try {
+            const { empresaId } = req.params;
+            if (!empresaId) {
+                res.status(400).json({ success: false, error: 'ID da empresa é obrigatório' });
+                return;
+            }
+            const produtosEmpresa = await prisma.produtoEmpresa.findMany({
+                where: { empresa_id: empresaId },
+                select: { produto_id: true, codigo_omie: true }
+            });
+            const jobs = [];
+            for (const produto of produtosEmpresa) {
+                const job = await agendarSincronizacaoProdutos(empresaId);
+                jobs.push(job.id);
+            }
+            res.json({
+                success: true,
+                data: {
+                    empresaId,
+                    totalProdutos: produtosEmpresa.length,
+                    jobsAgendados: jobs.length
+                },
+                message: `Atualização de estoque agendada para ${produtosEmpresa.length} produtos`
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message }, 'Erro ao atualizar estoque');
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+    async obterStatusFilas(req, res) {
+        try {
+            const status = {
+                filas: 0,
+                message: 'Filas desabilitadas - modo sem Redis'
+            };
+            res.json({
+                success: true,
+                data: status
+            });
+        }
+        catch (error) {
+            logger.error({ error: error.message }, 'Erro ao obter status das filas');
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+}
+//# sourceMappingURL=SincronizacaoController.js.map

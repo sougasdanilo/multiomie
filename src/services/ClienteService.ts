@@ -1,8 +1,8 @@
 import { PrismaClient, Cliente, Empresa } from '@prisma/client';
-import { prisma } from '../config/database';
-import { OmieIntegrationService } from '../integrations/OmieServices';
-import { Cliente as ClienteEntity, ClienteEmpresa, Endereco, DadosFiscais } from '../entities';
-import { encrypt } from '../utils/encryption';
+import { prisma } from '../config/database.js';
+import { OmieIntegrationService } from '../integrations/OmieServices.js';
+import { Cliente as ClienteEntity, ClienteEmpresa, Endereco, DadosFiscais } from '../entities/index.js';
+import { encrypt } from '../utils/encryption.js';
 
 export interface CadastroClienteDTO {
   nome: string;

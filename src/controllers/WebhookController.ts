@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { OmieIntegrationService } from '../integrations/OmieServices';
-import { prisma } from '../config/database';
+import { OmieIntegrationService } from '../integrations/OmieServices.js';
+import { prisma } from '../config/database.js';
 
 export class WebhookController {
   private omieIntegration: OmieIntegrationService;

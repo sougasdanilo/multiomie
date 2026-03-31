@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PedidoService, CreatePedidoDTO } from '../services/PedidoService';
+import { PedidoService, CreatePedidoDTO } from '../services/PedidoService.js';
 
 export class PedidoController {
   private pedidoService: PedidoService;
@@ -28,6 +28,10 @@ export class PedidoController {
   async processar(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID do pedido é obrigatório' });
+        return;
+      }
       const pedido = await this.pedidoService.processarPedido(id);
       
       res.json({
@@ -46,6 +50,10 @@ export class PedidoController {
   async faturar(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID do pedido é obrigatório' });
+        return;
+      }
       const pedido = await this.pedidoService.faturarPedido(id);
       
       res.json({
@@ -89,6 +97,10 @@ export class PedidoController {
   async obterPorId(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID do pedido é obrigatório' });
+        return;
+      }
       const pedido = await this.pedidoService.obterPedido(id);
       
       if (!pedido) {

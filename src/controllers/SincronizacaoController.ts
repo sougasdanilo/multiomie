@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { prisma } from '../config/database';
-import { OmieIntegrationService } from '../integrations/OmieServices';
-import { agendarSincronizacaoProdutos, agendarProcessamentoPedido, agendarFaturamentoPedido } from '../jobs/queues';
-import { logger } from '../middlewares/logger';
+import { prisma } from '../config/database.js';
+import { OmieIntegrationService } from '../integrations/OmieServices.js';
+import { agendarSincronizacaoProdutos, agendarProcessamentoPedido, agendarFaturamentoPedido } from '../jobs/queues.js';
+import { logger } from '../middlewares/logger.js';
 
 export class SincronizacaoController {
   private omieIntegration: OmieIntegrationService;

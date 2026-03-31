@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { prisma } from '../config/database';
-import { OmieIntegrationService } from '../integrations/OmieServices';
-import { omieCircuitBreaker } from '../integrations/CircuitBreaker';
-import { logger } from '../middlewares/logger';
+import { prisma } from '../config/database.js';
+import { OmieIntegrationService } from '../integrations/OmieServices.js';
+import { omieCircuitBreaker } from '../integrations/CircuitBreaker.js';
+import { logger } from '../middlewares/logger.js';
 
 export class DashboardController {
   private omieIntegration: OmieIntegrationService;

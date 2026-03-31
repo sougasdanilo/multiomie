@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { EmpresaService, CriarEmpresaDTO, AtualizarEmpresaDTO } from '../services/EmpresaService';
+import { EmpresaService, CriarEmpresaDTO, AtualizarEmpresaDTO } from '../services/EmpresaService.js';
 import { z } from 'zod';
 
 const criarEmpresaSchema = z.object({

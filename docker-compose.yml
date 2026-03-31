@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:senha@db:5432/multiomie
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-sua-chave-jwt-super-segura-min-32-chars}
+      - JWT_EXPIRES_IN=15m
+      - JWT_REFRESH_EXPIRES_IN=7d
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-sua-chave-32-chars-criptografia!!}
+      - OMIE_RATE_LIMIT_REQUESTS=60
+      - OMIE_RATE_LIMIT_WINDOW=60000
+      - LOG_LEVEL=info
+      - LOG_PRETTY=false
+      - ENABLE_WORKERS=true
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - multiomie-network
+
+  db:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=senha
+      - POSTGRES_DB=multiomie
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - multiomie-network
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - multiomie-network
+
+  # Worker opcional - pode rodar separado para processar filas
+  worker:
+    build: .
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:senha@db:5432/multiomie
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-sua-chave-jwt-super-segura-min-32-chars}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-sua-chave-32-chars-criptografia!!}
+      - LOG_LEVEL=info
+      - ENABLE_WORKERS=true
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - multiomie-network
+    # Sobrescreve o CMD para rodar apenas workers
+    command: ["node", "-e", "require('./dist/jobs/queues').initializeWorkers(); setInterval(() => {}, 1000);"]
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  multiomie-network:
+    driver: bridge

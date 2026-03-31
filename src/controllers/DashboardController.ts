@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
-import { redis } from '../config/redis';
 import { OmieIntegrationService } from '../integrations/OmieServices';
 import { omieCircuitBreaker } from '../integrations/CircuitBreaker';
 import { logger } from '../middlewares/logger';
@@ -276,13 +275,8 @@ export class DashboardController {
         databaseStatus = 'error';
       }
 
-      // Testa conexão com Redis
-      let redisStatus = 'ok';
-      try {
-        await redis.ping();
-      } catch (error) {
-        redisStatus = 'error';
-      }
+      // Testa conexão com Redis (removido - não usa mais Redis)
+      const redisStatus = 'disabled';
 
       const status = {
         timestamp: new Date().toISOString(),
@@ -298,10 +292,10 @@ export class DashboardController {
         }
       };
 
-      const httpStatus = databaseStatus === 'ok' && redisStatus === 'ok' ? 200 : 503;
+      const httpStatus = databaseStatus === 'ok' ? 200 : 503;
       
       res.status(httpStatus).json({
-        success: databaseStatus === 'ok' && redisStatus === 'ok',
+        success: databaseStatus === 'ok',
         data: status
       });
     } catch (error: any) {

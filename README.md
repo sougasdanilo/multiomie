@@ -8,7 +8,7 @@ Sistema ERP Node.js para gestão multi-empresa (multi-CNPJ) integrado à API do 
 - **Pedidos multi-estoque**: Interface única para pedidos com produtos de diferentes empresas
 - **Faturamento inteligente**: Separação automática de pedidos por CNPJ/origem
 - **Emissão de NF-e**: Integração completa com emissão de notas fiscais
-- **Processamento assíncrono**: Filas BullMQ para operações pesadas
+- **Processamento síncrono**: Operações diretas sem dependência de filas
 - **Dashboard em tempo real**: Monitoramento de integrações e métricas
 
 ## Índice
@@ -23,8 +23,7 @@ Sistema ERP Node.js para gestão multi-empresa (multi-CNPJ) integrado à API do 
 ## Tecnologias
 
 - **Backend**: Node.js 20+ + Express + TypeScript
-- **Banco de Dados**: PostgreSQL 14+ (dados transacionais) + Redis 7+ (cache/fila)
-- **Fila de Processamento**: BullMQ
+- **Banco de Dados**: PostgreSQL 14+ (dados transacionais)
 - **ORM**: Prisma
 - **Validação**: Zod
 - **HTTP Client**: Axios com Circuit Breaker (opossum)
@@ -36,11 +35,11 @@ Sistema ERP Node.js para gestão multi-empresa (multi-CNPJ) integrado à API do 
 ```
 multiomie/
 ├── src/
-│   ├── config/         # Configurações (DB, Redis)
+│   ├── config/         # Configurações (DB)
 │   ├── controllers/    # HTTP controllers
 │   ├── entities/       # Entidades de domínio (TypeScript interfaces)
 │   ├── integrations/   # Integração Omie API + Circuit Breaker
-│   ├── jobs/           # Processamento em background (BullMQ)
+│   ├── jobs/           # Processamento (simplificado, sem filas)
 │   ├── middlewares/    # Middlewares HTTP (auth, validation, logger)
 │   ├── routes/         # Rotas da API
 │   ├── schemas/        # Schemas de validação Zod

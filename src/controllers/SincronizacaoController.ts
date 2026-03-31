@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
-import { redis } from '../config/redis';
 import { OmieIntegrationService } from '../integrations/OmieServices';
 import { agendarSincronizacaoProdutos, agendarProcessamentoPedido, agendarFaturamentoPedido } from '../jobs/queues';
 import { logger } from '../middlewares/logger';
@@ -234,16 +233,13 @@ export class SincronizacaoController {
   }
 
   /**
-   * Obtém status das filas
+   * Obtém status das filas (desabilitado - sem Redis)
    */
   async obterStatusFilas(req: Request, res: Response): Promise<void> {
     try {
-      // Obtém informações do Redis sobre as filas
-      const queueKeys = await redis.keys('bull:*:id');
-      
       const status = {
-        filas: queueKeys.length,
-        keys: queueKeys
+        filas: 0,
+        message: 'Filas desabilitadas - modo sem Redis'
       };
 
       res.json({

@@ -1,5 +1,4 @@
 import { prisma } from '../config/database';
-import { redis } from '../config/redis';
 import { OmieIntegrationService } from '../integrations/OmieServices';
 import { ClienteService } from './ClienteService';
 import { ProdutoService } from './ProdutoService';

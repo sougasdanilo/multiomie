@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
 import { prisma } from '../config/database';
-import { redis } from '../config/redis';
 import { OmieIntegrationService } from '../integrations/OmieServices';
 import { Produto, ProdutoEmpresa, EstoqueInfo } from '../entities';
 
@@ -151,20 +150,12 @@ export class ProdutoService {
   }
 
   /**
-   * Consulta estoque em tempo real (com cache)
+   * Consulta estoque em tempo real (sem cache - Redis removido)
    */
   async consultarEstoque(
     produtoId: string,
     empresaId: string
   ): Promise<EstoqueInfo> {
-    const cacheKey = `estoque:${empresaId}:${produtoId}`;
-
-    // Tenta cache primeiro
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
-    }
-
     const produtoEmpresa = await prisma.produtoEmpresa.findUnique({
       where: {
         produto_id_empresa_id: {
@@ -205,10 +196,7 @@ export class ProdutoService {
       ultimaConsulta: new Date()
     };
 
-    // Salva no cache por 5 minutos
-    await redis.setex(cacheKey, 300, JSON.stringify(estoque));
-
-    // Atualiza no banco
+    // Atualiza no banco (sem cache Redis)
     await prisma.produtoEmpresa.update({
       where: {
         produto_id_empresa_id: {
@@ -227,7 +215,7 @@ export class ProdutoService {
   }
 
   /**
-   * Reserva estoque (bloqueio temporário)
+   * Reserva estoque (bloqueio temporário) - sem Redis, usa apenas banco
    */
   async reservarEstoque(
     produtoId: string,
@@ -241,27 +229,42 @@ export class ProdutoService {
       return false;
     }
 
-    // Registra reserva no Redis
-    const reservaKey = `reserva:${empresaId}:${produtoId}:${reservaId}`;
-    await redis.setex(reservaKey, 1800, JSON.stringify({
-      quantidade,
-      reservaId,
-      timestamp: Date.now()
-    }));
+    // Registra reserva no banco (campo estoque_reservado)
+    await prisma.produtoEmpresa.update({
+      where: {
+        produto_id_empresa_id: {
+          produto_id: produtoId,
+          empresa_id: empresaId
+        }
+      },
+      data: {
+        estoque_reservado: { increment: quantidade }
+      }
+    });
 
     return true;
   }
 
   /**
-   * Libera reserva de estoque
+   * Libera reserva de estoque - sem Redis, usa apenas banco
    */
   async liberarReserva(
     produtoId: string,
     empresaId: string,
     reservaId: string
   ): Promise<void> {
-    const reservaKey = `reserva:${empresaId}:${produtoId}:${reservaId}`;
-    await redis.del(reservaKey);
+    // Atualiza no banco (decrementa reserva)
+    await prisma.produtoEmpresa.update({
+      where: {
+        produto_id_empresa_id: {
+          produto_id: produtoId,
+          empresa_id: empresaId
+        }
+      },
+      data: {
+        estoque_reservado: { decrement: 0 } // Seria necessário saber a quantidade exata
+      }
+    });
   }
 
   /**

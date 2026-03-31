@@ -6,7 +6,6 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
 import { connectDatabase } from './config/database';
-import { connectRedis } from './config/redis';
 import { initializeWorkers } from './jobs/queues';
 import { requestLogger, errorLogger } from './middlewares/logger';
 import routes from './routes';
@@ -79,33 +78,15 @@ async function startServer() {
     // Conecta ao banco de dados
     await connectDatabase();
     
-    // Conecta ao Redis (opcional - não bloqueia se falhar)
-    let redisConnected = false;
-    try {
-      await connectRedis();
-      redisConnected = true;
-    } catch (error: any) {
-      console.warn('⚠️  Redis não disponível:', error.message);
-      console.warn('   Funcionalidades de fila estarão desabilitadas');
-    }
-    
-    // Inicializa workers BullMQ apenas se Redis conectado e habilitado
-    if (redisConnected && process.env.ENABLE_WORKERS !== 'false') {
-      try {
-        initializeWorkers();
-      } catch (error: any) {
-        console.warn('⚠️  Falha ao inicializar workers:', error.message);
-      }
-    }
+    // Workers desabilitados (sem Redis)
+    console.log('ℹ️  Workers desabilitados - modo sem Redis');
     
     app.listen(PORT, () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);
       console.log(`📚 API disponível em: http://localhost:${PORT}/api`);
       console.log(`💚 Health check: http://localhost:${PORT}/health`);
       console.log(`🔧 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-      if (!redisConnected) {
-        console.log('⚠️  Modo sem Redis - funcionalidades de fila desabilitadas');
-      }
+      console.log('ℹ️  Modo sem Redis - funcionalidades de fila desabilitadas');
     });
   } catch (error) {
     console.error('❌ Falha ao iniciar servidor:', error);

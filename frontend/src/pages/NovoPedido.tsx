@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, 
@@ -11,23 +11,21 @@ import {
   FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAppStore } from '../stores/appStore'
 
-const mockClientes = [
-  { id: '1', nome: 'João Silva', cnpj: '123.456.789-00' },
-  { id: '2', nome: 'Maria Santos', cnpj: '987.654.321-00' },
-  { id: '3', nome: 'Pedro Costa', cnpj: '456.789.123-00' },
-]
+interface Cliente {
+  id: string
+  nome: string
+  cnpj: string
+}
 
-const mockProdutos = [
-  { id: '1', codigo: 'SKU-001', descricao: 'Notebook Dell i7', preco: '5.500,00', estoque: { matriz: 15, sp: 8 } },
-  { id: '2', codigo: 'SKU-002', descricao: 'Mouse Logitech MX', preco: '450,00', estoque: { matriz: 45, sp: 32 } },
-  { id: '3', codigo: 'SKU-003', descricao: 'Teclado Mecânico RGB', preco: '650,00', estoque: { matriz: 3, sp: 5 } },
-]
-
-const mockEmpresas = [
-  { id: '1', nome: 'Matriz', sigla: 'MAT' },
-  { id: '2', nome: 'SP Filial', sigla: 'SP' },
-]
+interface Produto {
+  id: string
+  codigo: string
+  descricao: string
+  preco: string
+  estoque: Record<string, number>
+}
 
 interface ItemPedido {
   id: string
@@ -41,6 +39,9 @@ interface ItemPedido {
 
 export function NovoPedido() {
   const navigate = useNavigate()
+  const { empresas } = useAppStore()
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [produtos, setProdutos] = useState<Produto[]>([])
   const [clienteId, setClienteId] = useState('')
   const [itens, setItens] = useState<ItemPedido[]>([])
   const [showProdutoModal, setShowProdutoModal] = useState(false)
@@ -48,11 +49,27 @@ export function NovoPedido() {
   const [quantidade, setQuantidade] = useState(1)
   const [empresaSelecionada, setEmpresaSelecionada] = useState('')
 
-  const clienteSelecionado = mockClientes.find(c => c.id === clienteId)
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [clientesRes, produtosRes] = await Promise.all([
+          fetch('/api/clientes'),
+          fetch('/api/produtos')
+        ])
+        if (clientesRes.ok) setClientes(await clientesRes.json())
+        if (produtosRes.ok) setProdutos(await produtosRes.json())
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error)
+      }
+    }
+    loadData()
+  }, [])
+
+  const clienteSelecionado = clientes.find(c => c.id === clienteId)
 
   const adicionarItem = () => {
-    const produto = mockProdutos.find(p => p.id === produtoSelecionado)
-    const empresa = mockEmpresas.find(e => e.id === empresaSelecionada)
+    const produto = produtos.find(p => p.id === produtoSelecionado)
+    const empresa = empresas.find(e => e.id === empresaSelecionada)
     
     if (!produto || !empresa) return
 
@@ -63,7 +80,7 @@ export function NovoPedido() {
       quantidade,
       preco_unitario: produto.preco,
       empresa_id: empresa.id,
-      empresa_sigla: empresa.sigla,
+      empresa_sigla: empresa.nome_fantasia?.substring(0, 3).toUpperCase() || empresa.nome.substring(0, 3).toUpperCase(),
     }
 
     setItens([...itens, novoItem])
@@ -136,7 +153,7 @@ export function NovoPedido() {
                   className="input"
                 >
                   <option value="">Selecione um cliente...</option>
-                  {mockClientes.map(c => (
+                  {clientes.map(c => (
                     <option key={c.id} value={c.id}>{c.nome} - {c.cnpj}</option>
                   ))}
                 </select>
@@ -286,7 +303,7 @@ export function NovoPedido() {
                   className="input"
                 >
                   <option value="">Selecione...</option>
-                  {mockProdutos.map(p => (
+                  {produtos.map(p => (
                     <option key={p.id} value={p.id}>
                       {p.codigo} - {p.descricao} (R$ {p.preco})
                     </option>
@@ -302,8 +319,8 @@ export function NovoPedido() {
                   className="input"
                 >
                   <option value="">Selecione...</option>
-                  {mockEmpresas.map(e => (
-                    <option key={e.id} value={e.id}>{e.nome}</option>
+                  {empresas.map(e => (
+                    <option key={e.id} value={e.id}>{e.nome_fantasia || e.nome}</option>
                   ))}
                 </select>
               </div>

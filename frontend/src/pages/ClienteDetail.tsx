@@ -1,46 +1,99 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, User, RefreshCw, Building2, CheckCircle, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAppStore } from '../stores/appStore'
 
-const mockEmpresasSync = [
-  { id: '1', nome: 'Matriz', codigo_omie: '12345', status: 'synced', last_sync: '2024-03-20 14:30' },
-  { id: '2', nome: 'SP Filial', codigo_omie: '67890', status: 'synced', last_sync: '2024-03-20 14:30' },
-  { id: '3', nome: 'Sul Distrib', codigo_omie: null, status: 'pending', last_sync: null },
-]
+interface EmpresaSync {
+  id: string
+  nome: string
+  codigo_omie: string | null
+  status: string
+  last_sync: string | null
+}
 
 export function ClienteDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { empresas, loadEmpresas } = useAppStore()
   const isNew = !id
   
   const [form, setForm] = useState({
-    nome: isNew ? '' : 'João Silva',
-    cpf_cnpj: isNew ? '' : '123.456.789-00',
-    email: isNew ? '' : 'joao@email.com',
-    telefone: isNew ? '' : '(11) 98765-4321',
-    celular: isNew ? '' : '(11) 98765-4321',
+    nome: '',
+    cpf_cnpj: '',
+    email: '',
+    telefone: '',
+    celular: '',
     endereco: {
-      logradouro: isNew ? '' : 'Rua das Flores',
-      numero: isNew ? '' : '123',
-      complemento: isNew ? '' : 'Apto 45',
-      bairro: isNew ? '' : 'Centro',
-      cidade: isNew ? '' : 'São Paulo',
-      estado: isNew ? '' : 'SP',
-      cep: isNew ? '' : '01000-000',
+      logradouro: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      estado: '',
+      cep: '',
     },
     ie: '',
     im: '',
   })
+  const [empresasSync, setEmpresasSync] = useState<EmpresaSync[]>([])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    loadEmpresas()
+  }, [loadEmpresas])
+
+  useEffect(() => {
+    if (!isNew && id) {
+      const loadCliente = async () => {
+        try {
+          const [clienteRes, syncRes] = await Promise.all([
+            fetch(`/api/clientes/${id}`),
+            fetch(`/api/clientes/${id}/sync-status`)
+          ])
+          if (clienteRes.ok) {
+            const data = await clienteRes.json()
+            setForm(data)
+          }
+          if (syncRes.ok) {
+            setEmpresasSync(await syncRes.json())
+          }
+        } catch (error) {
+          console.error('Erro ao carregar cliente:', error)
+        }
+      }
+      loadCliente()
+    }
+  }, [id, isNew, empresas])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    toast.success(isNew ? 'Cliente criado com sucesso!' : 'Cliente atualizado!')
-    navigate('/clientes')
+    try {
+      const url = isNew ? '/api/clientes' : `/api/clientes/${id}`
+      const method = isNew ? 'POST' : 'PUT'
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      })
+      if (response.ok) {
+        toast.success(isNew ? 'Cliente criado com sucesso!' : 'Cliente atualizado!')
+        navigate('/clientes')
+      }
+    } catch (error) {
+      toast.error('Erro ao salvar cliente')
+    }
   }
 
-  const handleSync = () => {
-    toast.success('Sincronizando cliente em todas as empresas...')
+  const handleSync = async () => {
+    if (!id) return
+    try {
+      const response = await fetch(`/api/clientes/${id}/sync`, { method: 'POST' })
+      if (response.ok) {
+        toast.success('Sincronizando cliente em todas as empresas...')
+      }
+    } catch (error) {
+      toast.error('Erro ao sincronizar')
+    }
   }
 
   return (
@@ -246,7 +299,7 @@ export function ClienteDetail() {
               </p>
               
               <div className="space-y-3">
-                {mockEmpresasSync.map((emp) => (
+                {empresasSync.map((emp) => (
                   <div key={emp.id} className="flex items-center justify-between p-3 bg-dark-800/50 rounded-lg">
                     <div>
                       <p className="font-medium text-dark-200">{emp.nome}</p>

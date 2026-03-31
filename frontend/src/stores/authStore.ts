@@ -23,29 +23,22 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      user: {
-        id: '1',
-        nome: 'Administrador',
-        email: 'admin@multiomie.com',
-      },
-      token: 'mock-token',
-      isAuthenticated: true,
+      user: null,
+      token: null,
+      isAuthenticated: false,
       isLoading: false,
 
-      login: async (email, _password) => {
+      login: async (email, password) => {
         set({ isLoading: true })
         try {
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          set({
-            user: {
-              id: '1',
-              nome: 'Administrador',
-              email: email,
-            },
-            token: 'mock-token',
-            isAuthenticated: true,
-            isLoading: false,
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
           })
+          if (!response.ok) throw new Error('Credenciais inválidas')
+          const { user, token } = await response.json()
+          set({ user, token, isAuthenticated: true, isLoading: false })
         } catch {
           set({ isLoading: false })
           throw new Error('Credenciais inválidas')

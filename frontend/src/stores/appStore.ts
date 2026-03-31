@@ -6,6 +6,8 @@ interface Empresa {
   cnpj: string
   nome_fantasia?: string
   ativa: boolean
+  total_pedidos?: number
+  clientes_sync?: number
 }
 
 interface AppState {
@@ -28,14 +30,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   isMobile: false,
 
   loadEmpresas: async () => {
-    await new Promise(resolve => setTimeout(resolve, 500))
-    set({
-      empresas: [
-        { id: '1', nome: 'Empresa Matriz LTDA', cnpj: '12.345.678/0001-90', nome_fantasia: 'Matriz', ativa: true },
-        { id: '2', nome: 'Filial São Paulo LTDA', cnpj: '98.765.432/0001-21', nome_fantasia: 'SP Filial', ativa: true },
-        { id: '3', nome: 'Distribuidora Sul LTDA', cnpj: '11.222.333/0001-44', nome_fantasia: 'Sul Distrib', ativa: false },
-      ]
-    })
+    try {
+      const response = await fetch('/api/empresas')
+      if (!response.ok) throw new Error('Erro ao carregar empresas')
+      const empresas = await response.json()
+      set({ empresas })
+    } catch (error) {
+      console.error('Erro ao carregar empresas:', error)
+      set({ empresas: [] })
+    }
   },
 
   selecionarEmpresa: (empresa) => {

@@ -1,15 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Calendar, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAppStore } from '../stores/appStore'
 
-const mockPedidos = [
-  { id: 'PED-001', cliente: 'João Silva', valor: '1.250,00', status: 'rascunho', data: '2024-03-20', itens: 3, empresa: 'Matriz' },
-  { id: 'PED-002', cliente: 'Maria Santos', valor: '3.450,00', status: 'processando', data: '2024-03-19', itens: 5, empresa: 'Multi' },
-  { id: 'PED-003', cliente: 'Pedro Costa', valor: '890,00', status: 'concluido', data: '2024-03-18', itens: 2, empresa: 'SP Filial' },
-  { id: 'PED-004', cliente: 'Ana Paula', valor: '2.100,00', status: 'faturado', data: '2024-03-18', itens: 4, empresa: 'Matriz' },
-  { id: 'PED-005', cliente: 'Carlos Lima', valor: '4.550,00', status: 'cancelado', data: '2024-03-17', itens: 6, empresa: 'Sul Distrib' },
-]
+interface Pedido {
+  id: string
+  numero: string
+  cliente: string
+  valor_total: number
+  status: string
+  data: string
+  itens: number
+  empresa: string
+}
 
 const statusConfig = {
   rascunho: { label: 'Rascunho', badge: 'badge-gray' },
@@ -20,13 +23,32 @@ const statusConfig = {
 }
 
 export function Pedidos() {
-  const { empresaSelecionada: _ } = useAppStore()
+  const { empresaSelecionada } = useAppStore()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('todos')
+  const [pedidos, setPedidos] = useState<Pedido[]>([])
 
-  const filteredPedidos = mockPedidos.filter(p => {
+  useEffect(() => {
+    const loadPedidos = async () => {
+      try {
+        const url = empresaSelecionada 
+          ? `/api/pedidos?empresa_id=${empresaSelecionada.id}`
+          : '/api/pedidos'
+        const response = await fetch(url)
+        if (response.ok) {
+          const data = await response.json()
+          setPedidos(data)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar pedidos:', error)
+      }
+    }
+    loadPedidos()
+  }, [empresaSelecionada])
+
+  const filteredPedidos = pedidos.filter(p => {
     const matchesSearch = p.cliente.toLowerCase().includes(search.toLowerCase()) ||
-                         p.id.toLowerCase().includes(search.toLowerCase())
+                         p.numero.toLowerCase().includes(search.toLowerCase())
     const matchesStatus = statusFilter === 'todos' || p.status === statusFilter
     return matchesSearch && matchesStatus
   })
@@ -104,7 +126,7 @@ export function Pedidos() {
                   </div>
                 </td>
                 <td className="hidden sm:table-cell">{pedido.itens}</td>
-                <td className="font-medium">R$ {pedido.valor}</td>
+                <td className="font-medium">R$ {pedido.valor_total?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                 <td>
                   <span className={statusConfig[pedido.status as keyof typeof statusConfig].badge}>
                     {statusConfig[pedido.status as keyof typeof statusConfig].label}

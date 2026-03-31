@@ -1,20 +1,39 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Package, Edit } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAppStore } from '../stores/appStore'
 
-const mockProdutos = [
-  { id: '1', codigo: 'SKU-001', descricao: 'Notebook Dell i7', ncm: '8471.30.12', unidade: 'UN', preco_base: '5.500,00', estoque: { matriz: 15, sp: 8, sul: 0 } },
-  { id: '2', codigo: 'SKU-002', descricao: 'Mouse Logitech MX', ncm: '8471.60.10', unidade: 'UN', preco_base: '450,00', estoque: { matriz: 45, sp: 32, sul: 12 } },
-  { id: '3', codigo: 'SKU-003', descricao: 'Teclado Mecânico RGB', ncm: '8471.60.10', unidade: 'UN', preco_base: '650,00', estoque: { matriz: 3, sp: 5, sul: 2 } },
-  { id: '4', codigo: 'SKU-004', descricao: 'Monitor 27" 4K', ncm: '8528.52.00', unidade: 'UN', preco_base: '2.800,00', estoque: { matriz: 8, sp: 3, sul: 1 } },
-]
+interface Produto {
+  id: string
+  codigo: string
+  descricao: string
+  ncm: string
+  unidade: string
+  preco_base: number
+  estoque: Record<string, number>
+}
 
 export function Produtos() {
-  const { empresaSelecionada: _ } = useAppStore()
+  const { empresaSelecionada } = useAppStore()
   const [search, setSearch] = useState('')
+  const [produtos, setProdutos] = useState<Produto[]>([])
 
-  const filteredProdutos = mockProdutos.filter(p => 
+  useEffect(() => {
+    const loadProdutos = async () => {
+      try {
+        const response = await fetch('/api/produtos')
+        if (response.ok) {
+          const data = await response.json()
+          setProdutos(data)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar produtos:', error)
+      }
+    }
+    loadProdutos()
+  }, [empresaSelecionada])
+
+  const filteredProdutos = produtos.filter(p => 
     p.descricao.toLowerCase().includes(search.toLowerCase()) ||
     p.codigo.toLowerCase().includes(search.toLowerCase())
   )

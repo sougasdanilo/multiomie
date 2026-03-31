@@ -1,20 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Building2, MoreVertical, Edit, Trash2, Power, PowerOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAppStore } from '../stores/appStore'
 
-const mockEmpresas = [
-  { id: '1', nome: 'Empresa Matriz LTDA', nome_fantasia: 'Matriz', cnpj: '12.345.678/0001-90', ativa: true, total_pedidos: 156, clientes_sync: 45 },
-  { id: '2', nome: 'Filial São Paulo LTDA', nome_fantasia: 'SP Filial', cnpj: '98.765.432/0001-21', ativa: true, total_pedidos: 89, clientes_sync: 32 },
-  { id: '3', nome: 'Distribuidora Sul LTDA', nome_fantasia: 'Sul Distrib', cnpj: '11.222.333/0001-44', ativa: false, total_pedidos: 0, clientes_sync: 0 },
-]
-
 export function Empresas() {
-  const { empresas: _ } = useAppStore()
+  const { empresas, loadEmpresas } = useAppStore()
   const [search, setSearch] = useState('')
   const [showMenu, setShowMenu] = useState<string | null>(null)
 
-  const filteredEmpresas = mockEmpresas.filter(e => 
+  useEffect(() => {
+    loadEmpresas()
+  }, [loadEmpresas])
+
+  const filteredEmpresas = empresas.filter(e => 
     e.nome.toLowerCase().includes(search.toLowerCase()) ||
     e.cnpj.includes(search)
   )

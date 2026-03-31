@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, Package, AlertCircle, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const mockEstoqueEmpresas = [
-  { id: '1', nome: 'Matriz', codigo_omie: '12345', estoque_atual: 15, estoque_minimo: 5, preco_venda: '5.500,00', ultima_consulta: '2024-03-20 14:30' },
-  { id: '2', nome: 'SP Filial', codigo_omie: '67890', estoque_atual: 8, estoque_minimo: 3, preco_venda: '5.500,00', ultima_consulta: '2024-03-20 10:15' },
-  { id: '3', nome: 'Sul Distrib', codigo_omie: '11121', estoque_atual: 0, estoque_minimo: 2, preco_venda: '5.800,00', ultima_consulta: null },
-]
+interface EstoqueEmpresa {
+  id: string
+  nome: string
+  codigo_omie: string
+  estoque_atual: number
+  estoque_minimo: number
+  preco_venda: string
+  ultima_consulta: string | null
+}
 
 export function ProdutoDetail() {
   const { id } = useParams()
@@ -15,25 +19,69 @@ export function ProdutoDetail() {
   const isNew = !id
 
   const [form, setForm] = useState({
-    codigo: isNew ? '' : 'SKU-001',
-    descricao: isNew ? '' : 'Notebook Dell i7',
-    descricao_complementar: isNew ? '' : 'Processador i7, 16GB RAM, SSD 512GB',
-    ncm: isNew ? '' : '8471.30.12',
-    cest: isNew ? '' : '',
-    cfop: isNew ? '' : '5102',
-    unidade: isNew ? '' : 'UN',
-    preco_base: isNew ? '' : '5500,00',
+    codigo: '',
+    descricao: '',
+    descricao_complementar: '',
+    ncm: '',
+    cest: '',
+    cfop: '',
+    unidade: '',
+    preco_base: '',
     ativo: true,
   })
+  const [estoqueEmpresas, setEstoqueEmpresas] = useState<EstoqueEmpresa[]>([])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!isNew && id) {
+      const loadProduto = async () => {
+        try {
+          const [produtoRes, estoqueRes] = await Promise.all([
+            fetch(`/api/produtos/${id}`),
+            fetch(`/api/produtos/${id}/estoque`)
+          ])
+          if (produtoRes.ok) {
+            const data = await produtoRes.json()
+            setForm(data)
+          }
+          if (estoqueRes.ok) {
+            setEstoqueEmpresas(await estoqueRes.json())
+          }
+        } catch (error) {
+          console.error('Erro ao carregar produto:', error)
+        }
+      }
+      loadProduto()
+    }
+  }, [id, isNew])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    toast.success(isNew ? 'Produto criado com sucesso!' : 'Produto atualizado!')
-    navigate('/produtos')
+    try {
+      const url = isNew ? '/api/produtos' : `/api/produtos/${id}`
+      const method = isNew ? 'POST' : 'PUT'
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      })
+      if (response.ok) {
+        toast.success(isNew ? 'Produto criado com sucesso!' : 'Produto atualizado!')
+        navigate('/produtos')
+      }
+    } catch (error) {
+      toast.error('Erro ao salvar produto')
+    }
   }
 
-  const handleConsultarEstoque = (_empresaId: string) => {
-    toast.success('Consultando estoque no Omie...')
+  const handleConsultarEstoque = async (empresaId: string) => {
+    try {
+      const response = await fetch(`/api/produtos/${id}/estoque/${empresaId}/consultar`, { method: 'POST' })
+      if (response.ok) {
+        toast.success('Consultando estoque no Omie...')
+      }
+    } catch (error) {
+      toast.error('Erro ao consultar estoque')
+    }
   }
 
   return (
@@ -196,7 +244,7 @@ export function ProdutoDetail() {
               </div>
               
               <div className="space-y-4">
-                {mockEstoqueEmpresas.map((emp) => (
+                {estoqueEmpresas.map((emp) => (
                   <div key={emp.id} className="p-3 bg-dark-800/50 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium text-dark-200">{emp.nome}</span>

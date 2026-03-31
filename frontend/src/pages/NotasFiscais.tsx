@@ -1,12 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, FileText, Download, CheckCircle, AlertCircle, Calendar } from 'lucide-react'
+import { useAppStore } from '../stores/appStore'
 
-const mockNFs = [
-  { id: '1', numero: '1234', serie: '1', empresa: 'Matriz', cliente: 'João Silva', valor: '5.500,00', data: '2024-03-20', status: 'autorizada', chave: '12345678901234567890123456789012345678901234' },
-  { id: '2', numero: '1235', serie: '1', empresa: 'SP Filial', cliente: 'Maria Santos', valor: '3.450,00', data: '2024-03-19', status: 'autorizada', chave: '12345678901234567890123456789012345678901235' },
-  { id: '3', numero: '1236', serie: '1', empresa: 'Matriz', cliente: 'Pedro Costa', valor: '890,00', data: '2024-03-18', status: 'cancelada', chave: '12345678901234567890123456789012345678901236' },
-  { id: '4', numero: '1237', serie: '1', empresa: 'Sul Distrib', cliente: 'Ana Paula', valor: '2.100,00', data: '2024-03-18', status: 'autorizada', chave: '12345678901234567890123456789012345678901237' },
-]
+interface NotaFiscal {
+  id: string
+  numero: string
+  serie: string
+  empresa: string
+  cliente: string
+  valor: number
+  data: string
+  status: string
+  chave: string
+}
 
 const statusConfig = {
   autorizada: { label: 'Autorizada', badge: 'badge-green', icon: CheckCircle },
@@ -15,9 +21,29 @@ const statusConfig = {
 }
 
 export function NotasFiscais() {
+  const { empresaSelecionada } = useAppStore()
   const [search, setSearch] = useState('')
+  const [notas, setNotas] = useState<NotaFiscal[]>([])
 
-  const filteredNFs = mockNFs.filter(nf => 
+  useEffect(() => {
+    const loadNotas = async () => {
+      try {
+        const url = empresaSelecionada
+          ? `/api/notas-fiscais?empresa_id=${empresaSelecionada.id}`
+          : '/api/notas-fiscais'
+        const response = await fetch(url)
+        if (response.ok) {
+          const data = await response.json()
+          setNotas(data)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar notas:', error)
+      }
+    }
+    loadNotas()
+  }, [empresaSelecionada])
+
+  const filteredNFs = notas.filter(nf => 
     nf.cliente.toLowerCase().includes(search.toLowerCase()) ||
     nf.numero.includes(search)
   )
@@ -69,7 +95,7 @@ export function NotasFiscais() {
                       {nf.data}
                     </div>
                   </td>
-                  <td className="font-medium">R$ {nf.valor}</td>
+                  <td className="font-medium">R$ {nf.valor?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                   <td>
                     <span className={statusConfig[nf.status as keyof typeof statusConfig].badge}>
                       <StatusIcon className="w-3 h-3 inline mr-1" />

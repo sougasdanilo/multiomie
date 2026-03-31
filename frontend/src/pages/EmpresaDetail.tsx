@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, Building2, Key, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -10,18 +10,48 @@ export function EmpresaDetail() {
   const [showSecret, setShowSecret] = useState(false)
   
   const [form, setForm] = useState({
-    nome: isNew ? '' : 'Empresa Matriz LTDA',
-    nome_fantasia: isNew ? '' : 'Matriz',
-    cnpj: isNew ? '' : '12.345.678/0001-90',
-    app_key: isNew ? '' : '123456789',
-    app_secret: isNew ? '' : '************************',
+    nome: '',
+    nome_fantasia: '',
+    cnpj: '',
+    app_key: '',
+    app_secret: '',
     ativa: true,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!isNew && id) {
+      const loadEmpresa = async () => {
+        try {
+          const response = await fetch(`/api/empresas/${id}`)
+          if (response.ok) {
+            const data = await response.json()
+            setForm(data)
+          }
+        } catch (error) {
+          console.error('Erro ao carregar empresa:', error)
+        }
+      }
+      loadEmpresa()
+    }
+  }, [id, isNew])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    toast.success(isNew ? 'Empresa criada com sucesso!' : 'Empresa atualizada!')
-    navigate('/empresas')
+    try {
+      const url = isNew ? '/api/empresas' : `/api/empresas/${id}`
+      const method = isNew ? 'POST' : 'PUT'
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      })
+      if (response.ok) {
+        toast.success(isNew ? 'Empresa criada com sucesso!' : 'Empresa atualizada!')
+        navigate('/empresas')
+      }
+    } catch (error) {
+      toast.error('Erro ao salvar empresa')
+    }
   }
 
   return (

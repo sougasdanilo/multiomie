@@ -1,34 +1,55 @@
+import { useState, useEffect } from 'react'
 import { ArrowLeft, FileText, Download, Printer, Copy } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
-const mockNF = {
-  id: '1',
-  numero: '1234',
-  serie: '1',
-  chave_acesso: '12345678901234567890123456789012345678901234',
-  protocolo: '123456789012345',
-  empresa: { nome: 'Empresa Matriz LTDA', cnpj: '12.345.678/0001-90', ie: '123.456.789.012' },
-  cliente: { nome: 'João Silva', cnpj: '123.456.789-00', ie: '', endereco: 'Rua das Flores, 123 - Centro, São Paulo - SP, CEP: 01000-000' },
-  data_emissao: '2024-03-20 14:30:00',
-  data_saida: '2024-03-21 08:00:00',
-  natureza_operacao: 'Venda de Mercadoria',
-  itens: [
-    { codigo: 'SKU-001', descricao: 'Notebook Dell i7', ncm: '8471.30.12', cfop: '5102', unidade: 'UN', quantidade: 1, valor_unitario: '5.500,00', valor_total: '5.500,00' },
-  ],
-  totais: { icms_base: '5.500,00', icms: '660,00', ipi: '0,00', pis: '113,85', cofins: '524,25', total_produtos: '5.500,00', total_nf: '5.500,00' },
-  transporte: { modalidade: 'Por conta do destinatário', volumes: 1, especie: 'Caixa', peso_bruto: '2.500', peso_liquido: '2.200' },
-  cobranca: { forma_pagamento: 'Boleto', fatura: '001', valor: '5.500,00', vencimento: '2024-04-20' },
-  informacoes: { fisco: '', complementares: 'Pedido: PED-001. Operação realizada conforme contrato.' },
+interface NotaFiscal {
+  id: string
+  numero: string
+  serie: string
+  chave_acesso: string
+  protocolo: string
+  empresa: { nome: string; cnpj: string; ie: string }
+  cliente: { nome: string; cnpj: string; ie: string; endereco: string }
+  data_emissao: string
+  data_saida: string
+  natureza_operacao: string
+  itens: Array<{ codigo: string; descricao: string; ncm: string; cfop: string; unidade: string; quantidade: number; valor_unitario: string; valor_total: string }>
+  totais: { icms_base: string; icms: string; ipi: string; pis: string; cofins: string; total_produtos: string; total_nf: string }
 }
 
 export function NotaFiscalDetail() {
+  const { id } = useParams()
   const navigate = useNavigate()
+  const [nf, setNf] = useState<NotaFiscal | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (id) {
+      const loadNF = async () => {
+        try {
+          const response = await fetch(`/api/notas-fiscais/${id}`)
+          if (response.ok) {
+            setNf(await response.json())
+          }
+        } catch (error) {
+          console.error('Erro ao carregar nota fiscal:', error)
+        } finally {
+          setIsLoading(false)
+        }
+      }
+      loadNF()
+    }
+  }, [id])
 
   const copyChave = () => {
-    navigator.clipboard.writeText(mockNF.chave_acesso)
+    if (!nf) return
+    navigator.clipboard.writeText(nf.chave_acesso)
     toast.success('Chave de acesso copiada!')
   }
+
+  if (isLoading) return <div className="page-container">Carregando...</div>
+  if (!nf) return <div className="page-container">Nota fiscal não encontrada</div>
 
   return (
     <div className="page-container animate-fade-in">
@@ -38,10 +59,10 @@ export function NotaFiscalDetail() {
         </button>
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="section-title">NF-e {mockNF.numero}</h1>
+            <h1 className="section-title">NF-e {nf.numero}</h1>
             <span className="badge-green">Autorizada</span>
           </div>
-          <p className="section-subtitle">Série {mockNF.serie} - Emitida em {mockNF.data_emissao}</p>
+          <p className="section-subtitle">Série {nf.serie} - Emitida em {nf.data_emissao}</p>
         </div>
       </div>
 
@@ -57,7 +78,7 @@ export function NotaFiscalDetail() {
           <div className="card">
             <h2 className="font-semibold text-dark-100 mb-4">Chave de Acesso</h2>
             <div className="flex items-center gap-2 p-3 bg-dark-800/50 rounded-lg">
-              <code className="flex-1 text-sm text-dark-300 break-all">{mockNF.chave_acesso}</code>
+              <code className="flex-1 text-sm text-dark-300 break-all">{nf.chave_acesso}</code>
               <button onClick={copyChave} className="p-2 hover:bg-dark-700 rounded-lg"><Copy className="w-4 h-4 text-dark-400" /></button>
             </div>
           </div>
@@ -65,19 +86,19 @@ export function NotaFiscalDetail() {
           <div className="card">
             <h2 className="font-semibold text-dark-100 mb-4">Emitente</h2>
             <div>
-              <p className="font-medium text-dark-200">{mockNF.empresa.nome}</p>
-              <p className="text-sm text-dark-500">CNPJ: {mockNF.empresa.cnpj}</p>
-              <p className="text-sm text-dark-500">IE: {mockNF.empresa.ie}</p>
+              <p className="font-medium text-dark-200">{nf.empresa.nome}</p>
+              <p className="text-sm text-dark-500">CNPJ: {nf.empresa.cnpj}</p>
+              <p className="text-sm text-dark-500">IE: {nf.empresa.ie}</p>
             </div>
           </div>
 
           <div className="card">
             <h2 className="font-semibold text-dark-100 mb-4">Destinatário</h2>
             <div>
-              <p className="font-medium text-dark-200">{mockNF.cliente.nome}</p>
-              <p className="text-sm text-dark-500">CNPJ/CPF: {mockNF.cliente.cnpj}</p>
-              <p className="text-sm text-dark-500">IE: {mockNF.cliente.ie || 'Isento'}</p>
-              <p className="text-sm text-dark-500 mt-2">{mockNF.cliente.endereco}</p>
+              <p className="font-medium text-dark-200">{nf.cliente.nome}</p>
+              <p className="text-sm text-dark-500">CNPJ/CPF: {nf.cliente.cnpj}</p>
+              <p className="text-sm text-dark-500">IE: {nf.cliente.ie || 'Isento'}</p>
+              <p className="text-sm text-dark-500 mt-2">{nf.cliente.endereco}</p>
             </div>
           </div>
         </div>
@@ -86,7 +107,7 @@ export function NotaFiscalDetail() {
           <div className="card">
             <h2 className="font-semibold text-dark-100 mb-4">Itens</h2>
             <div className="space-y-3">
-              {mockNF.itens.map((item, idx) => (
+              {nf.itens.map((item, idx) => (
                 <div key={idx} className="p-3 bg-dark-800/50 rounded-lg text-sm">
                   <div className="flex justify-between">
                     <span className="font-medium text-dark-200">{item.codigo} - {item.descricao}</span>
@@ -103,13 +124,13 @@ export function NotaFiscalDetail() {
           <div className="card">
             <h2 className="font-semibold text-dark-100 mb-4">Totais</h2>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-dark-400"><span>Base ICMS</span><span>R$ {mockNF.totais.icms_base}</span></div>
-              <div className="flex justify-between text-dark-400"><span>ICMS</span><span>R$ {mockNF.totais.icms}</span></div>
-              <div className="flex justify-between text-dark-400"><span>IPI</span><span>R$ {mockNF.totais.ipi}</span></div>
-              <div className="flex justify-between text-dark-400"><span>PIS</span><span>R$ {mockNF.totais.pis}</span></div>
-              <div className="flex justify-between text-dark-400"><span>COFINS</span><span>R$ {mockNF.totais.cofins}</span></div>
+              <div className="flex justify-between text-dark-400"><span>Base ICMS</span><span>R$ {nf.totais.icms_base}</span></div>
+              <div className="flex justify-between text-dark-400"><span>ICMS</span><span>R$ {nf.totais.icms}</span></div>
+              <div className="flex justify-between text-dark-400"><span>IPI</span><span>R$ {nf.totais.ipi}</span></div>
+              <div className="flex justify-between text-dark-400"><span>PIS</span><span>R$ {nf.totais.pis}</span></div>
+              <div className="flex justify-between text-dark-400"><span>COFINS</span><span>R$ {nf.totais.cofins}</span></div>
               <div className="flex justify-between text-lg font-semibold text-dark-100 pt-2 border-t border-dark-800">
-                <span>Total NF</span><span>R$ {mockNF.totais.total_nf}</span>
+                <span>Total NF</span><span>R$ {nf.totais.total_nf}</span>
               </div>
             </div>
           </div>

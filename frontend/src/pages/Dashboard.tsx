@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -7,57 +7,26 @@ import {
   Users, 
   ShoppingCart,
   ArrowRight,
-  Clock,
-  CheckCircle,
-  AlertCircle
+  Clock
 } from 'lucide-react'
 import { useAppStore } from '../stores/appStore'
 
-const stats = [
-  { 
-    label: 'Vendas Hoje', 
-    value: 'R$ 12.450,00', 
-    change: '+12%', 
-    trend: 'up',
-    icon: DollarSign 
-  },
-  { 
-    label: 'Pedidos', 
-    value: '28', 
-    change: '+5%', 
-    trend: 'up',
-    icon: ShoppingCart 
-  },
-  { 
-    label: 'Novos Clientes', 
-    value: '7', 
-    change: '-2%', 
-    trend: 'down',
-    icon: Users 
-  },
-  { 
-    label: 'Produtos Baixo Estoque', 
-    value: '12', 
-    change: '+3', 
-    trend: 'up',
-    icon: Package 
-  },
-]
+interface RecentOrder {
+  id: string
+  cliente: string
+  valor: string
+  status: string
+  empresa: string
+  tempo: string
+}
 
-const recentOrders = [
-  { id: 'PED-001', cliente: 'João Silva', valor: 'R$ 1.250,00', status: 'processando', empresa: 'Matriz', tempo: '2 min' },
-  { id: 'PED-002', cliente: 'Maria Santos', valor: 'R$ 3.450,00', status: 'concluido', empresa: 'SP Filial', tempo: '1 h' },
-  { id: 'PED-003', cliente: 'Pedro Costa', valor: 'R$ 890,00', status: 'pendente', empresa: 'Matriz', tempo: '3 h' },
-  { id: 'PED-004', cliente: 'Ana Paula', valor: 'R$ 2.100,00', status: 'concluido', empresa: 'Sul Distrib', tempo: '5 h' },
-  { id: 'PED-005', cliente: 'Carlos Lima', valor: 'R$ 4.550,00', status: 'faturando', empresa: 'Matriz', tempo: '6 h' },
-]
-
-const activities = [
-  { tipo: 'pedido', descricao: 'Novo pedido criado', detalhe: 'PED-001 - João Silva', tempo: '2 min atrás', icon: ShoppingCart },
-  { tipo: 'cliente', descricao: 'Cliente sincronizado', detalhe: 'Maria Santos - 3 empresas', tempo: '15 min atrás', icon: Users },
-  { tipo: 'nota', descricao: 'NF-e emitida', detalhe: 'NF 1234 - R$ 3.450,00', tempo: '1 h atrás', icon: CheckCircle },
-  { tipo: 'alerta', descricao: 'Estoque baixo', detalhe: 'Produto SKU-123 (Matriz)', tempo: '2 h atrás', icon: AlertCircle },
-]
+interface Activity {
+  tipo: string
+  descricao: string
+  detalhe: string
+  tempo: string
+  icon: React.ComponentType<{ className?: string }>
+}
 
 function getStatusBadge(status: string) {
   switch (status) {
@@ -77,6 +46,65 @@ function getStatusBadge(status: string) {
 export function Dashboard() {
   const { empresaSelecionada } = useAppStore()
   const [timeRange, setTimeRange] = useState('hoje')
+  const [stats, setStats] = useState({
+    vendasHoje: 0,
+    pedidosHoje: 0,
+    novosClientes: 0,
+    produtosBaixoEstoque: 0
+  })
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        const url = empresaSelecionada
+          ? `/api/dashboard?empresa_id=${empresaSelecionada.id}`
+          : '/api/dashboard'
+        const response = await fetch(url)
+        if (response.ok) {
+          const data = await response.json()
+          setStats(data.stats)
+          setRecentOrders(data.recentOrders || [])
+          setActivities(data.activities || [])
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dashboard:', error)
+      }
+    }
+    loadDashboardData()
+  }, [empresaSelecionada, timeRange])
+
+  const statsCards = [
+    { 
+      label: 'Vendas Hoje', 
+      value: `R$ ${stats.vendasHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
+      change: '+12%', 
+      trend: 'up' as const,
+      icon: DollarSign 
+    },
+    { 
+      label: 'Pedidos', 
+      value: String(stats.pedidosHoje), 
+      change: '+5%', 
+      trend: 'up' as const,
+      icon: ShoppingCart 
+    },
+    { 
+      label: 'Novos Clientes', 
+      value: String(stats.novosClientes), 
+      change: '-2%', 
+      trend: 'down' as const,
+      icon: Users 
+    },
+    { 
+      label: 'Produtos Baixo Estoque', 
+      value: String(stats.produtosBaixoEstoque), 
+      change: '+3', 
+      trend: 'up' as const,
+      icon: Package 
+    },
+  ]
 
   return (
     <div className="page-container animate-fade-in">
@@ -113,7 +141,7 @@ export function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {stats.map((stat, index) => (
+        {statsCards.map((stat, index) => (
           <div key={index} className="stat-card">
             <div className="flex items-start justify-between">
               <div>

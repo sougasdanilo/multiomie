@@ -1,25 +1,51 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, RefreshCw, CheckCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
-const mockClientes = [
-  { id: '1', nome: 'João Silva', cpf_cnpj: '123.456.789-00', email: 'joao@email.com', telefone: '(11) 98765-4321', empresas_sync: 3, total_pedidos: 12 },
-  { id: '2', nome: 'Maria Santos', cpf_cnpj: '987.654.321-00', email: 'maria@email.com', telefone: '(11) 91234-5678', empresas_sync: 2, total_pedidos: 8 },
-  { id: '3', nome: 'Pedro Costa', cpf_cnpj: '456.789.123-00', email: 'pedro@email.com', telefone: '(11) 95678-1234', empresas_sync: 1, total_pedidos: 3 },
-  { id: '4', nome: 'Ana Paula', cpf_cnpj: '789.123.456-00', email: 'ana@email.com', telefone: '(11) 94321-8765', empresas_sync: 3, total_pedidos: 25 },
-]
+interface Cliente {
+  id: string
+  nome: string
+  cpf_cnpj: string
+  email: string
+  telefone: string
+  empresas_sync: number
+  total_pedidos: number
+}
 
 export function Clientes() {
   const [search, setSearch] = useState('')
+  const [clientes, setClientes] = useState<Cliente[]>([])
 
-  const filteredClientes = mockClientes.filter(c => 
+  useEffect(() => {
+    const loadClientes = async () => {
+      try {
+        const response = await fetch('/api/clientes')
+        if (response.ok) {
+          const data = await response.json()
+          setClientes(data)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar clientes:', error)
+      }
+    }
+    loadClientes()
+  }, [])
+
+  const filteredClientes = clientes.filter(c => 
     c.nome.toLowerCase().includes(search.toLowerCase()) ||
     c.cpf_cnpj.includes(search)
   )
 
-  const handleSync = (_clienteId: string) => {
-    toast.success('Cliente sincronizado com todas as empresas!')
+  const handleSync = async (clienteId: string) => {
+    try {
+      const response = await fetch(`/api/clientes/${clienteId}/sync`, { method: 'POST' })
+      if (response.ok) {
+        toast.success('Cliente sincronizado com todas as empresas!')
+      }
+    } catch (error) {
+      toast.error('Erro ao sincronizar cliente')
+    }
   }
 
   return (

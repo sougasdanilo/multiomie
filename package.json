@@ -9,7 +9,7 @@
     "build": "tsc",
     "build:frontend": "cd frontend && npm run build",
     "build:full": "npm run build:frontend && npm run build",
-    "start": "node dist/server.js",
+    "start": "npm run build:full && node dist/server.js",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",

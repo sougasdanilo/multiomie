@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-export declare const logger: any;
+export declare const logger: import("pino").Logger<never>;
 export interface LoggedRequest extends Request {
     id: string;
     startTime: number;

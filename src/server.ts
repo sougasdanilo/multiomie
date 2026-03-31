@@ -58,7 +58,7 @@ app.get('/health', (req, res) => {
 app.use('/api', routes);
 
 // Serve static files from frontend build
-const frontendPath = path.join(__dirname, '../frontend');
+const frontendPath = path.join(__dirname, '../dist/frontend');
 app.use(express.static(frontendPath));
 
 // Fallback to index.html for SPA routes (must be after API routes)

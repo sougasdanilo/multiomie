@@ -1,0 +1,279 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id            String   @id @default(uuid())
+  nome          String
+  cnpj          String   @unique
+  nome_fantasia String?
+  app_key       String
+  app_secret    String
+  ativa         Boolean  @default(true)
+  configuracoes Json?
+  
+  clienteEmpresas ClienteEmpresa[]
+  produtoEmpresas ProdutoEmpresa[]
+  pedidoEmpresas  PedidoEmpresa[]
+  notasFiscais    NotaFiscal[]
+  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("empresas")
+}
+
+model Cliente {
+  id         String   @id @default(uuid())
+  nome       String
+  cpf_cnpj   String   @unique
+  email      String?
+  telefone   String?
+  celular    String?
+  endereco   Json?
+  ie         String?
+  im         String?
+  tipo_contribuinte String? @default("9")
+  
+  clienteEmpresas ClienteEmpresa[]
+  pedidos         Pedido[]
+  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("clientes")
+}
+
+model ClienteEmpresa {
+  id       String @id @default(uuid())
+  
+  cliente_id  String
+  cliente     Cliente  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  
+  empresa_id  String
+  empresa     Empresa  @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  
+  codigo_omie String
+  sync_status String   @default("PENDING")
+  last_sync   DateTime?
+  sync_error  String?
+  dados_customizados Json?
+  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  @@unique([cliente_id, empresa_id])
+  @@map("cliente_empresa")
+}
+
+model Produto {
+  id          String  @id @default(uuid())
+  codigo      String  @unique
+  descricao   String
+  descricao_complementar String?
+  ncm         String
+  cest        String?
+  cfop        String?
+  unidade     String
+  preco_base  Decimal? @db.Decimal(15, 2)
+  tipo        String   @default("PRODUTO")
+  ativo       Boolean  @default(true)
+  
+  produtoEmpresas ProdutoEmpresa[]
+  pedidoItens     PedidoItem[]
+  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("produtos")
+}
+
+model ProdutoEmpresa {
+  id     String @id @default(uuid())
+  
+  produto_id  String
+  produto     Produto @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+  
+  empresa_id  String
+  empresa     Empresa @relation(fields: [empresa_id], references: [id], onDelete: Cascade)
+  
+  codigo_omie String
+  estoque_minimo   Int      @default(0)
+  estoque_atual    Int      @default(0)
+  estoque_reservado Int     @default(0)
+  ultima_consulta  DateTime?
+  preco_venda      Decimal? @db.Decimal(15, 2)
+  config_fiscal    Json?
+  dados_omie       Json?
+  
+  pedidoItens      PedidoItem[]
+  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  @@unique([produto_id, empresa_id])
+  @@map("produto_empresa")
+}
+
+model Pedido {
+  id     String @id @default(uuid())
+  
+  numero        String   @unique
+  cliente_id    String
+  cliente       Cliente  @relation(fields: [cliente_id], references: [id])
+  
+  status        String   @default("RASCUNHO")
+  substatus     String?
+  
+  valor_produtos Decimal  @db.Decimal(15, 2)
+  valor_desconto Decimal  @default(0) @db.Decimal(15, 2)
+  valor_frete    Decimal  @default(0) @db.Decimal(15, 2)
+  valor_total    Decimal  @db.Decimal(15, 2)
+  
+  endereco_entrega Json?
+  data_previsao DateTime?
+  forma_pagamento String?
+  condicao_pagamento String?
+  observacoes    String?
+  observacao_interna String?
+  usuario_id     String?
+  
+  itens          PedidoItem[]
+  pedidoEmpresas PedidoEmpresa[]
+  notasFiscais   NotaFiscal[]
+  
+  processado_at  DateTime?
+  faturado_at    DateTime?
+  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("pedidos")
+}
+
+model PedidoItem {
+  id     String @id @default(uuid())
+  
+  pedido_id   String
+  pedido      Pedido  @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
+  
+  produto_id  String
+  produto     Produto @relation(fields: [produto_id], references: [id])
+  
+  empresa_id  String
+  produtoEmpresa ProdutoEmpresa @relation(fields: [produto_id, empresa_id], references: [produto_id, empresa_id])
+  
+  quantidade     Decimal  @db.Decimal(15, 3)
+  preco_unitario Decimal  @db.Decimal(15, 4)
+  valor_total    Decimal  @db.Decimal(15, 2)
+  percentual_desconto Decimal @default(0)
+  valor_desconto      Decimal @default(0) @db.Decimal(15, 2)
+  sequencia      Int
+  ncm            String?
+  cfop           String?
+  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("pedido_itens")
+}
+
+model PedidoEmpresa {
+  id     String @id @default(uuid())
+  
+  pedido_id   String
+  pedido      Pedido  @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
+  
+  empresa_id  String
+  empresa     Empresa @relation(fields: [empresa_id], references: [id])
+  
+  codigo_pedido_omie String?
+  numero_pedido_omie String?
+  status_omie    String?
+  valor_itens    Decimal? @db.Decimal(15, 2)
+  valor_total    Decimal? @db.Decimal(15, 2)
+  resposta_omie  Json?
+  tentativas     Int      @default(0)
+  ultimo_erro    String?
+  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  @@unique([pedido_id, empresa_id])
+  @@map("pedido_empresa")
+}
+
+model NotaFiscal {
+  id     String @id @default(uuid())
+  
+  pedido_id   String
+  pedido      Pedido  @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
+  
+  empresa_id  String
+  empresa     Empresa @relation(fields: [empresa_id], references: [id])
+  
+  numero      String
+  serie       String   @default("1")
+  chave_acesso String   @unique
+  protocolo   String?
+  
+  data_emissao DateTime @default(now())
+  data_saida   DateTime?
+  
+  valor_produtos Decimal @db.Decimal(15, 2)
+  valor_desconto Decimal @db.Decimal(15, 2)
+  valor_total    Decimal @db.Decimal(15, 2)
+  
+  xml_url     String?
+  pdf_url     String?
+  status      String   @default("EMITIDA")
+  motivo_cancelamento String?
+  dados_omie  Json?
+  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("notas_fiscais")
+}
+
+model Sincronizacao {
+  id          String   @id @default(uuid())
+  tipo        String
+  entidade_id String
+  empresa_id  String?
+  acao        String
+  status      String   @default("PENDING")
+  payload     Json?
+  resposta    Json?
+  erro        String?
+  tentativas  Int      @default(0)
+  scheduled_at DateTime @default(now())
+  executed_at  DateTime?
+  completed_at DateTime?
+  created_at DateTime @default(now())
+
+  @@map("sincronizacoes")
+}
+
+model Auditoria {
+  id          String   @id @default(uuid())
+  entidade    String
+  entidade_id String
+  acao        String
+  dados_anteriores Json?
+  dados_novos      Json?
+  usuario_id  String?
+  ip_address  String?
+  user_agent  String?
+  origem      String?
+  created_at DateTime @default(now())
+
+  @@index([entidade, entidade_id])
+  @@index([created_at])
+  @@map("auditoria")
+}

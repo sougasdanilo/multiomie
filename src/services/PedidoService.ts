@@ -163,10 +163,12 @@ export class PedidoService {
     // Agrupa itens por empresa
     const porEmpresa: Record<string, typeof pedido.itens> = {};
     for (const item of pedido.itens) {
-      if (!porEmpresa[item.empresa_id]) {
-        porEmpresa[item.empresa_id] = [];
+      let empresaItens = porEmpresa[item.empresa_id];
+      if (!empresaItens) {
+        empresaItens = [];
+        porEmpresa[item.empresa_id] = empresaItens;
       }
-      porEmpresa[item.empresa_id].push(item);
+      empresaItens.push(item);
     }
 
     const resultados: Array<{ empresaId: string; sucesso: boolean; codigo?: string; numero?: string; erro?: string }> = [];
@@ -211,7 +213,7 @@ export class PedidoService {
         where: { id: pedidoId },
         data: { 
           status: 'CANCELADO',
-          observacao_interna: `Falha no processamento: ${resultados.filter(r => !r.sucesso).map(r => r.erro).join(', ')}`
+          observacao_interna: `Falha no processamento: ${resultados.filter(r => !r.sucesso && r.erro).map(r => r.erro).join(', ')}`
         }
       });
 
@@ -229,20 +231,20 @@ export class PedidoService {
 
     // Cria registros de vínculo
     for (const resultado of resultados) {
-      if (resultado.sucesso) {
+      if (resultado.sucesso && resultado.codigo && resultado.numero) {
         await prisma.pedidoEmpresa.create({
           data: {
             pedido_id: pedidoId,
             empresa_id: resultado.empresaId,
-            codigo_pedido_omie: resultado.codigo!,
-            numero_pedido_omie: resultado.numero!,
+            codigo_pedido_omie: resultado.codigo,
+            numero_pedido_omie: resultado.numero,
             status_omie: 'PENDENTE'
           }
         });
       }
     }
 
-    return this.obterPedido(pedidoId)!;
+    return this.obterPedido(pedidoId) as Promise<Pedido>;
   }
 
   /**
@@ -296,7 +298,7 @@ export class PedidoService {
       throw new Error('Falha ao faturar em uma ou mais empresas');
     }
 
-    return this.obterPedido(pedidoId)!;
+    return this.obterPedido(pedidoId) as Promise<Pedido>;
   }
 
   /**
@@ -435,7 +437,7 @@ export class PedidoService {
       if (!agrupado[item.empresaId]) {
         agrupado[item.empresaId] = [];
       }
-      agrupado[item.empresaId].push(item);
+      agrupado[item.empresaId]!.push(item);
     }
 
     return agrupado;
@@ -515,7 +517,7 @@ export class PedidoService {
       },
       det: itens.map(item => ({
         ide: {
-          codigo_produto: parseInt(item.produtoEmpresa.codigo_omie),
+          codigo_produto: parseInt(item.produtoEmpresa?.codigo_omie || '0'),
           quantidade: item.quantidade
         },
         produto: {
@@ -617,10 +619,10 @@ export class PedidoService {
       clienteId: pedido.cliente_id,
       status: pedido.status as PedidoStatus,
       substatus: pedido.substatus || undefined,
-      valorProdutos: parseFloat(pedido.valor_produtos.toString()),
-      valorDesconto: parseFloat(pedido.valor_desconto.toString()),
-      valorFrete: parseFloat(pedido.valor_frete.toString()),
-      valorTotal: parseFloat(pedido.valor_total.toString()),
+      valorProdutos: parseFloat(pedido.valor_produtos?.toString() || '0'),
+      valorDesconto: parseFloat(pedido.valor_desconto?.toString() || '0'),
+      valorFrete: parseFloat(pedido.valor_frete?.toString() || '0'),
+      valorTotal: parseFloat(pedido.valor_total?.toString() || '0'),
       enderecoEntrega: pedido.endereco_entrega as Endereco || undefined,
       dataPrevisao: pedido.data_previsao || undefined,
       formaPagamento: pedido.forma_pagamento || undefined,
@@ -660,11 +662,11 @@ export class PedidoService {
           createdAt: item.produtoEmpresa.empresa.created_at,
           updatedAt: item.produtoEmpresa.empresa.updated_at
         } : undefined,
-        quantidade: parseFloat(item.quantidade.toString()),
-        precoUnitario: parseFloat(item.preco_unitario.toString()),
-        valorTotal: parseFloat(item.valor_total.toString()),
-        percentualDesconto: parseFloat(item.percentual_desconto.toString()),
-        valorDesconto: parseFloat(item.valor_desconto.toString()),
+        quantidade: parseFloat(item.quantidade?.toString() || '0'),
+        precoUnitario: parseFloat(item.preco_unitario?.toString() || '0'),
+        valorTotal: parseFloat(item.valor_total?.toString() || '0'),
+        percentualDesconto: parseFloat(item.percentual_desconto?.toString() || '0'),
+        valorDesconto: parseFloat(item.valor_desconto?.toString() || '0'),
         sequencia: item.sequencia,
         ncm: item.ncm || undefined,
         cfop: item.cfop || undefined
@@ -718,9 +720,9 @@ export class PedidoService {
         protocolo: nf.protocolo || undefined,
         dataEmissao: nf.data_emissao,
         dataSaida: nf.data_saida || undefined,
-        valorProdutos: parseFloat(nf.valor_produtos.toString()),
-        valorDesconto: parseFloat(nf.valor_desconto.toString()),
-        valorTotal: parseFloat(nf.valor_total.toString()),
+        valorProdutos: parseFloat(nf.valor_produtos?.toString() || '0'),
+        valorDesconto: parseFloat(nf.valor_desconto?.toString() || '0'),
+        valorTotal: parseFloat(nf.valor_total?.toString() || '0'),
         xmlUrl: nf.xml_url || undefined,
         pdfUrl: nf.pdf_url || undefined,
         status: nf.status as any,

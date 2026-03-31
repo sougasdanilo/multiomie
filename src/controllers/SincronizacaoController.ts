@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../config/database.js';
+import { sql } from '../config/database.js';
 import { OmieIntegrationService } from '../integrations/OmieServices.js';
 import { agendarSincronizacaoProdutos, agendarProcessamentoPedido, agendarFaturamentoPedido } from '../jobs/queues.js';
 import { logger } from '../middlewares/logger.js';
@@ -23,9 +23,9 @@ export class SincronizacaoController {
         return;
       }
 
-      const empresa = await prisma.empresa.findUnique({ where: { id: empresaId } });
+      const empresa = await sql`SELECT * FROM empresas WHERE id = ${empresaId} LIMIT 1`;
       
-      if (!empresa) {
+      if (!empresa.length) {
         res.status(404).json({ success: false, error: 'Empresa não encontrada' });
         return;
       }
@@ -64,9 +64,9 @@ export class SincronizacaoController {
         return;
       }
 
-      const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
+      const pedido = await sql`SELECT * FROM pedidos WHERE id = ${pedidoId} LIMIT 1`;
       
-      if (!pedido) {
+      if (!pedido.length) {
         res.status(404).json({ success: false, error: 'Pedido não encontrado' });
         return;
       }
@@ -105,9 +105,9 @@ export class SincronizacaoController {
         return;
       }
 
-      const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
+      const pedido = await sql`SELECT * FROM pedidos WHERE id = ${pedidoId} LIMIT 1`;
       
-      if (!pedido) {
+      if (!pedido.length) {
         res.status(404).json({ success: false, error: 'Pedido não encontrado' });
         return;
       }
@@ -138,7 +138,7 @@ export class SincronizacaoController {
    */
   async sincronizarClientesTodasEmpresas(req: Request, res: Response): Promise<void> {
     try {
-      const empresas = await prisma.empresa.findMany({ where: { ativa: true } });
+      const empresas = await sql`SELECT * FROM empresas WHERE ativa = true`;
       const resultados = [];
 
       for (const empresa of empresas) {
@@ -202,10 +202,10 @@ export class SincronizacaoController {
         return;
       }
 
-      const produtosEmpresa = await prisma.produtoEmpresa.findMany({
-        where: { empresa_id: empresaId },
-        select: { produto_id: true, codigo_omie: true }
-      });
+      const produtosEmpresa = await sql`
+        SELECT produto_id, codigo_omie FROM produto_empresa 
+        WHERE empresa_id = ${empresaId}
+      `;
 
       // Agenda atualização de estoque para cada produto
       const jobs = [];

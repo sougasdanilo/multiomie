@@ -16,28 +16,6 @@ export interface CreatePedidoDTO {
     itens: CreatePedidoItemDTO[];
     usuarioId?: string;
 }
-export interface PedidoOmiePayload {
-    cabecalho: {
-        codigo_cliente: number;
-        codigo_pedido_integracao: string;
-        data_previsao: string;
-        numero_pedido: string;
-        codigo_parcela: string;
-        quantidade_itens: number;
-        valor_total: number;
-        obs?: string;
-    };
-    det: Array<{
-        ide: {
-            codigo_produto: number;
-            quantidade: number;
-        };
-        produto: {
-            valor_unitario: number;
-            valor_total: number;
-        };
-    }>;
-}
 export declare class PedidoService {
     private omieIntegration;
     private clienteService;
@@ -51,13 +29,8 @@ export declare class PedidoService {
         status?: string;
         clienteId?: string;
     }): Promise<Pedido[]>;
-    private validarEEnriquecerItens;
-    private agruparItensPorEmpresa;
-    private calcularValores;
     private gerarNumeroPedido;
-    private criarPedidoOmie;
-    private faturarPedidoOmie;
-    private cancelarPedidoOmie;
+    private calcularValores;
     private mapToEntity;
 }
 //# sourceMappingURL=PedidoService.d.ts.map

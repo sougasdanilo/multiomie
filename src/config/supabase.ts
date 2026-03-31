@@ -1,0 +1,579 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true
+  }
+});
+
+export async function connectSupabase(): Promise<void> {
+  try {
+    const { data, error } = await supabase.from('empresas').select('count').limit(1);
+    if (error) {
+      console.error('❌ Supabase connection failed:', error);
+      process.exit(1);
+    }
+    console.log('✅ Supabase connected successfully');
+  } catch (error) {
+    console.error('❌ Supabase connection failed:', error);
+    process.exit(1);
+  }
+}
+
+export type Database = {
+  public: {
+    Tables: {
+      empresas: {
+        Row: {
+          id: string;
+          nome: string;
+          cnpj: string;
+          nome_fantasia: string | null;
+          app_key: string;
+          app_secret: string;
+          ativa: boolean;
+          configuracoes: any | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          nome: string;
+          cnpj: string;
+          nome_fantasia?: string | null;
+          app_key: string;
+          app_secret: string;
+          ativa?: boolean;
+          configuracoes?: any | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          nome?: string;
+          cnpj?: string;
+          nome_fantasia?: string | null;
+          app_key?: string;
+          app_secret?: string;
+          ativa?: boolean;
+          configuracoes?: any | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      clientes: {
+        Row: {
+          id: string;
+          nome: string;
+          cpf_cnpj: string;
+          email: string | null;
+          telefone: string | null;
+          celular: string | null;
+          endereco: any | null;
+          ie: string | null;
+          im: string | null;
+          tipo_contribuinte: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          nome: string;
+          cpf_cnpj: string;
+          email?: string | null;
+          telefone?: string | null;
+          celular?: string | null;
+          endereco?: any | null;
+          ie?: string | null;
+          im?: string | null;
+          tipo_contribuinte?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          nome?: string;
+          cpf_cnpj?: string;
+          email?: string | null;
+          telefone?: string | null;
+          celular?: string | null;
+          endereco?: any | null;
+          ie?: string | null;
+          im?: string | null;
+          tipo_contribuinte?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      produtos: {
+        Row: {
+          id: string;
+          codigo: string;
+          descricao: string;
+          descricao_complementar: string | null;
+          ncm: string;
+          cest: string | null;
+          cfop: string | null;
+          unidade: string;
+          preco_base: number | null;
+          tipo: string;
+          ativo: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          codigo: string;
+          descricao: string;
+          descricao_complementar?: string | null;
+          ncm: string;
+          cest?: string | null;
+          cfop?: string | null;
+          unidade: string;
+          preco_base?: number | null;
+          tipo?: string;
+          ativo?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          codigo?: string;
+          descricao?: string;
+          descricao_complementar?: string | null;
+          ncm?: string;
+          cest?: string | null;
+          cfop?: string | null;
+          unidade?: string;
+          preco_base?: number | null;
+          tipo?: string;
+          ativo?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      pedidos: {
+        Row: {
+          id: string;
+          numero: string;
+          cliente_id: string;
+          status: string;
+          substatus: string | null;
+          valor_produtos: number;
+          valor_desconto: number;
+          valor_frete: number;
+          valor_total: number;
+          endereco_entrega: any | null;
+          data_previsao: string | null;
+          forma_pagamento: string | null;
+          condicao_pagamento: string | null;
+          observacoes: string | null;
+          observacao_interna: string | null;
+          usuario_id: string | null;
+          processado_at: string | null;
+          faturado_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          numero: string;
+          cliente_id: string;
+          status?: string;
+          substatus?: string | null;
+          valor_produtos: number;
+          valor_desconto?: number;
+          valor_frete?: number;
+          valor_total: number;
+          endereco_entrega?: any | null;
+          data_previsao?: string | null;
+          forma_pagamento?: string | null;
+          condicao_pagamento?: string | null;
+          observacoes?: string | null;
+          observacao_interna?: string | null;
+          usuario_id?: string | null;
+          processado_at?: string | null;
+          faturado_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          numero?: string;
+          cliente_id?: string;
+          status?: string;
+          substatus?: string | null;
+          valor_produtos?: number;
+          valor_desconto?: number;
+          valor_frete?: number;
+          valor_total?: number;
+          endereco_entrega?: any | null;
+          data_previsao?: string | null;
+          forma_pagamento?: string | null;
+          condicao_pagamento?: string | null;
+          observacoes?: string | null;
+          observacao_interna?: string | null;
+          usuario_id?: string | null;
+          processado_at?: string | null;
+          faturado_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      cliente_empresa: {
+        Row: {
+          id: string;
+          cliente_id: string;
+          empresa_id: string;
+          codigo_omie: string;
+          sync_status: string;
+          last_sync: string | null;
+          sync_error: string | null;
+          dados_customizados: any | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          cliente_id: string;
+          empresa_id: string;
+          codigo_omie: string;
+          sync_status?: string;
+          last_sync?: string | null;
+          sync_error?: string | null;
+          dados_customizados?: any | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          cliente_id?: string;
+          empresa_id?: string;
+          codigo_omie?: string;
+          sync_status?: string;
+          last_sync?: string | null;
+          sync_error?: string | null;
+          dados_customizados?: any | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      produto_empresa: {
+        Row: {
+          id: string;
+          produto_id: string;
+          empresa_id: string;
+          codigo_omie: string;
+          estoque_minimo: number;
+          estoque_atual: number;
+          estoque_reservado: number;
+          ultima_consulta: string | null;
+          preco_venda: number | null;
+          config_fiscal: any | null;
+          dados_omie: any | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          produto_id: string;
+          empresa_id: string;
+          codigo_omie: string;
+          estoque_minimo?: number;
+          estoque_atual?: number;
+          estoque_reservado?: number;
+          ultima_consulta?: string | null;
+          preco_venda?: number | null;
+          config_fiscal?: any | null;
+          dados_omie?: any | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          produto_id?: string;
+          empresa_id?: string;
+          codigo_omie?: string;
+          estoque_minimo?: number;
+          estoque_atual?: number;
+          estoque_reservado?: number;
+          ultima_consulta?: string | null;
+          preco_venda?: number | null;
+          config_fiscal?: any | null;
+          dados_omie?: any | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      pedido_itens: {
+        Row: {
+          id: string;
+          pedido_id: string;
+          produto_id: string;
+          empresa_id: string;
+          quantidade: number;
+          preco_unitario: number;
+          valor_total: number;
+          percentual_desconto: number;
+          valor_desconto: number;
+          sequencia: number;
+          ncm: string | null;
+          cfop: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pedido_id: string;
+          produto_id: string;
+          empresa_id: string;
+          quantidade: number;
+          preco_unitario: number;
+          valor_total: number;
+          percentual_desconto?: number;
+          valor_desconto?: number;
+          sequencia: number;
+          ncm?: string | null;
+          cfop?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          pedido_id?: string;
+          produto_id?: string;
+          empresa_id?: string;
+          quantidade?: number;
+          preco_unitario?: number;
+          valor_total?: number;
+          percentual_desconto?: number;
+          valor_desconto?: number;
+          sequencia?: number;
+          ncm?: string | null;
+          cfop?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      pedido_empresa: {
+        Row: {
+          id: string;
+          pedido_id: string;
+          empresa_id: string;
+          codigo_pedido_omie: string | null;
+          numero_pedido_omie: string | null;
+          status_omie: string | null;
+          valor_itens: number | null;
+          valor_total: number | null;
+          resposta_omie: any | null;
+          tentativas: number;
+          ultimo_erro: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pedido_id: string;
+          empresa_id: string;
+          codigo_pedido_omie?: string | null;
+          numero_pedido_omie?: string | null;
+          status_omie?: string | null;
+          valor_itens?: number | null;
+          valor_total?: number | null;
+          resposta_omie?: any | null;
+          tentativas?: number;
+          ultimo_erro?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          pedido_id?: string;
+          empresa_id?: string;
+          codigo_pedido_omie?: string | null;
+          numero_pedido_omie?: string | null;
+          status_omie?: string | null;
+          valor_itens?: number | null;
+          valor_total?: number | null;
+          resposta_omie?: any | null;
+          tentativas?: number;
+          ultimo_erro?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      notas_fiscais: {
+        Row: {
+          id: string;
+          pedido_id: string;
+          empresa_id: string;
+          numero: string;
+          serie: string;
+          chave_acesso: string;
+          protocolo: string | null;
+          data_emissao: string;
+          data_saida: string | null;
+          valor_produtos: number;
+          valor_desconto: number;
+          valor_total: number;
+          xml_url: string | null;
+          pdf_url: string | null;
+          status: string;
+          motivo_cancelamento: string | null;
+          dados_omie: any | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          pedido_id: string;
+          empresa_id: string;
+          numero: string;
+          serie?: string;
+          chave_acesso: string;
+          protocolo?: string | null;
+          data_emissao?: string;
+          data_saida?: string | null;
+          valor_produtos: number;
+          valor_desconto: number;
+          valor_total: number;
+          xml_url?: string | null;
+          pdf_url?: string | null;
+          status?: string;
+          motivo_cancelamento?: string | null;
+          dados_omie?: any | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          pedido_id?: string;
+          empresa_id?: string;
+          numero?: string;
+          serie?: string;
+          chave_acesso?: string;
+          protocolo?: string | null;
+          data_emissao?: string;
+          data_saida?: string | null;
+          valor_produtos?: number;
+          valor_desconto?: number;
+          valor_total?: number;
+          xml_url?: string | null;
+          pdf_url?: string | null;
+          status?: string;
+          motivo_cancelamento?: string | null;
+          dados_omie?: any | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      sincronizacoes: {
+        Row: {
+          id: string;
+          tipo: string;
+          entidade_id: string;
+          empresa_id: string | null;
+          acao: string;
+          status: string;
+          payload: any | null;
+          resposta: any | null;
+          erro: string | null;
+          tentativas: number;
+          scheduled_at: string;
+          executed_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tipo: string;
+          entidade_id: string;
+          empresa_id?: string | null;
+          acao: string;
+          status?: string;
+          payload?: any | null;
+          resposta?: any | null;
+          erro?: string | null;
+          tentativas?: number;
+          scheduled_at?: string;
+          executed_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tipo?: string;
+          entidade_id?: string;
+          empresa_id?: string | null;
+          acao?: string;
+          status?: string;
+          payload?: any | null;
+          resposta?: any | null;
+          erro?: string | null;
+          tentativas?: number;
+          scheduled_at?: string;
+          executed_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+        };
+      };
+      auditoria: {
+        Row: {
+          id: string;
+          entidade: string;
+          entidade_id: string;
+          acao: string;
+          dados_anteriores: any | null;
+          dados_novos: any | null;
+          usuario_id: string | null;
+          ip_address: string | null;
+          user_agent: string | null;
+          origem: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          entidade: string;
+          entidade_id: string;
+          acao: string;
+          dados_anteriores?: any | null;
+          dados_novos?: any | null;
+          usuario_id?: string | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          origem?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          entidade?: string;
+          entidade_id?: string;
+          acao?: string;
+          dados_anteriores?: any | null;
+          dados_novos?: any | null;
+          usuario_id?: string | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          origem?: string | null;
+          created_at?: string;
+        };
+      };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
+};

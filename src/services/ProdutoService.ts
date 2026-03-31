@@ -1,5 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-import { prisma } from '../config/database.js';
+import { sql } from '../config/database.js';
 import { OmieIntegrationService } from '../integrations/OmieServices.js';
 import { Produto, ProdutoEmpresa, EstoqueInfo } from '../entities/index.js';
 
@@ -18,25 +17,23 @@ export class ProdutoService {
     criados: number;
     atualizados: number;
   }> {
-    const empresa = await prisma.empresa.findUnique({
-      where: { id: empresaId }
-    });
+    const empresa = await sql`SELECT * FROM empresas WHERE id = ${empresaId} LIMIT 1`;
 
-    if (!empresa) {
+    if (!empresa.length) {
       throw new Error('Empresa não encontrada');
     }
 
     const omieService = this.omieIntegration.getProdutoService({
-      id: empresa.id,
-      nome: empresa.nome,
-      cnpj: empresa.cnpj,
-      nomeFantasia: empresa.nome_fantasia || undefined,
-      appKey: empresa.app_key,
-      appSecret: empresa.app_secret,
-      ativa: empresa.ativa,
-      configuracoes: empresa.configuracoes as Record<string, unknown> | undefined,
-      createdAt: empresa.created_at,
-      updatedAt: empresa.updated_at
+      id: empresa[0].id,
+      nome: empresa[0].nome,
+      cnpj: empresa[0].cnpj,
+      nomeFantasia: empresa[0].nome_fantasia || undefined,
+      appKey: empresa[0].app_key,
+      appSecret: empresa[0].app_secret,
+      ativa: empresa[0].ativa,
+      configuracoes: empresa[0].configuracoes as Record<string, unknown> | undefined,
+      createdAt: empresa[0].created_at,
+      updatedAt: empresa[0].updated_at
     });
 
     let pagina = 1;
@@ -84,68 +81,43 @@ export class ProdutoService {
     const ncm = produtoOmie.ncm?.codigo || '00000000';
     
     // Tenta encontrar produto existente no ERP
-    let produto = await prisma.produto.findFirst({
-      where: {
-        OR: [
-          { ncm },
-          { codigo: `OMIE_${produtoOmie.codigo}` }
-        ]
-      }
-    });
+    let produto = await sql`
+      SELECT * FROM produtos WHERE ncm = ${ncm} OR codigo = ${`OMIE_${produtoOmie.codigo}`} LIMIT 1
+    `;
 
-    if (!produto) {
+    if (!produto.length) {
       // Cria produto genérico no ERP
-      produto = await prisma.produto.create({
-        data: {
-          codigo: `OMIE_${produtoOmie.codigo}`,
-          descricao: produtoOmie.descricao,
-          descricao_complementar: produtoOmie.descr_detalhada,
-          ncm,
-          cest: produtoOmie.cest?.codigo,
-          unidade: produtoOmie.unidade,
-          preco_base: parseFloat(produtoOmie.valor_unitario) || 0,
-          tipo: this.mapearTipoProduto(produtoOmie.tipoItem),
-          ativo: true
-        }
-      });
+      produto = await sql`
+        INSERT INTO produtos (codigo, descricao, descricao_complementar, ncm, cest, unidade, preco_base, tipo, ativo)
+        VALUES (${`OMIE_${produtoOmie.codigo}`}, ${produtoOmie.descricao}, ${produtoOmie.descr_detalhada}, ${ncm}, ${produtoOmie.cest?.codigo}, ${produtoOmie.unidade}, ${parseFloat(produtoOmie.valor_unitario) || 0}, ${this.mapearTipoProduto(produtoOmie.tipoItem)}, ${true})
+        RETURNING *
+      `;
     }
 
     // Atualiza/cria vínculo com empresa
-    const existente = await prisma.produtoEmpresa.findUnique({
-      where: {
-        produto_id_empresa_id: {
-          produto_id: produto.id,
-          empresa_id: empresa.id
-        }
-      }
-    });
+    const existente = await sql`
+      SELECT * FROM produto_empresa WHERE produto_id = ${produto[0].id} AND empresa_id = ${empresa.id} LIMIT 1
+    `;
 
-    await prisma.produtoEmpresa.upsert({
-      where: {
-        produto_id_empresa_id: {
-          produto_id: produto.id,
-          empresa_id: empresa.id
-        }
-      },
-      create: {
-        produto_id: produto.id,
-        empresa_id: empresa.id,
-        codigo_omie: produtoOmie.codigo.toString(),
-        preco_venda: parseFloat(produtoOmie.valor_unitario) || 0,
-        estoque_atual: parseInt(produtoOmie.quantidade_estoque) || 0,
-        dados_omie: produtoOmie
-      },
-      update: {
-        codigo_omie: produtoOmie.codigo.toString(),
-        preco_venda: parseFloat(produtoOmie.valor_unitario) || 0,
-        estoque_atual: parseInt(produtoOmie.quantidade_estoque) || 0,
-        dados_omie: produtoOmie
-      }
-    });
+    if (existente.length) {
+      await sql`
+        UPDATE produto_empresa 
+        SET codigo_omie = ${produtoOmie.codigo.toString()}, 
+            preco_venda = ${parseFloat(produtoOmie.valor_unitario) || 0}, 
+            estoque_atual = ${parseInt(produtoOmie.quantidade_estoque) || 0}, 
+            dados_omie = ${JSON.stringify(produtoOmie)}
+        WHERE produto_id = ${produto[0].id} AND empresa_id = ${empresa.id}
+      `;
+    } else {
+      await sql`
+        INSERT INTO produto_empresa (produto_id, empresa_id, codigo_omie, preco_venda, estoque_atual, dados_omie)
+        VALUES (${produto[0].id}, ${empresa.id}, ${produtoOmie.codigo.toString()}, ${parseFloat(produtoOmie.valor_unitario) || 0}, ${parseInt(produtoOmie.quantidade_estoque) || 0}, ${JSON.stringify(produtoOmie)})
+      `;
+    }
 
     return {
-      acao: existente ? 'ATUALIZADO' : 'CRIADO',
-      produtoId: produto.id
+      acao: existente.length ? 'ATUALIZADO' : 'CRIADO',
+      produtoId: produto[0].id
     };
   }
 
@@ -156,40 +128,36 @@ export class ProdutoService {
     produtoId: string,
     empresaId: string
   ): Promise<EstoqueInfo> {
-    const produtoEmpresa = await prisma.produtoEmpresa.findUnique({
-      where: {
-        produto_id_empresa_id: {
-          produto_id: produtoId,
-          empresa_id: empresaId
-        }
-      },
-      include: { produto: true, empresa: true }
-    });
+    const produtoEmpresa = await sql`
+      SELECT * FROM produto_empresa WHERE produto_id = ${produtoId} AND empresa_id = ${empresaId} LIMIT 1
+    `;
 
-    if (!produtoEmpresa) {
+    if (!produtoEmpresa.length) {
       throw new Error('Produto não encontrado na empresa');
     }
 
+    const empresa = await sql`SELECT * FROM empresas WHERE id = ${empresaId} LIMIT 1`;
+    
     const omieService = this.omieIntegration.getProdutoService({
-      id: produtoEmpresa.empresa.id,
-      nome: produtoEmpresa.empresa.nome,
-      cnpj: produtoEmpresa.empresa.cnpj,
-      nomeFantasia: produtoEmpresa.empresa.nome_fantasia || undefined,
-      appKey: produtoEmpresa.empresa.app_key,
-      appSecret: produtoEmpresa.empresa.app_secret,
-      ativa: produtoEmpresa.empresa.ativa,
-      configuracoes: produtoEmpresa.empresa.configuracoes as Record<string, unknown> | undefined,
-      createdAt: produtoEmpresa.empresa.created_at,
-      updatedAt: produtoEmpresa.empresa.updated_at
+      id: empresa[0].id,
+      nome: empresa[0].nome,
+      cnpj: empresa[0].cnpj,
+      nomeFantasia: empresa[0].nome_fantasia || undefined,
+      appKey: empresa[0].app_key,
+      appSecret: empresa[0].app_secret,
+      ativa: empresa[0].ativa,
+      configuracoes: empresa[0].configuracoes as Record<string, unknown> | undefined,
+      createdAt: empresa[0].created_at,
+      updatedAt: empresa[0].updated_at
     });
 
     // Consulta estoque real no Omie
-    const response = await omieService.consultarEstoque(produtoEmpresa.codigo_omie);
+    const response = await omieService.consultarEstoque(produtoEmpresa[0].codigo_omie);
 
     const estoque: EstoqueInfo = {
       produtoId,
       empresaId,
-      codigoOmie: produtoEmpresa.codigo_omie,
+      codigoOmie: produtoEmpresa[0].codigo_omie,
       saldo: response.saldo,
       reservado: response.reservado || 0,
       disponivel: response.saldo - (response.reservado || 0),
@@ -197,19 +165,13 @@ export class ProdutoService {
     };
 
     // Atualiza no banco (sem cache Redis)
-    await prisma.produtoEmpresa.update({
-      where: {
-        produto_id_empresa_id: {
-          produto_id: produtoId,
-          empresa_id: empresaId
-        }
-      },
-      data: {
-        estoque_atual: response.saldo,
-        estoque_reservado: response.reservado || 0,
-        ultima_consulta: new Date()
-      }
-    });
+    await sql`
+      UPDATE produto_empresa 
+      SET estoque_atual = ${response.saldo}, 
+          estoque_reservado = ${response.reservado || 0}, 
+          ultima_consulta = NOW()
+      WHERE produto_id = ${produtoId} AND empresa_id = ${empresaId}
+    `;
 
     return estoque;
   }
@@ -229,18 +191,12 @@ export class ProdutoService {
       return false;
     }
 
-    // Registra reserva no banco (campo estoque_reservado)
-    await prisma.produtoEmpresa.update({
-      where: {
-        produto_id_empresa_id: {
-          produto_id: produtoId,
-          empresa_id: empresaId
-        }
-      },
-      data: {
-        estoque_reservado: { increment: quantidade }
-      }
-    });
+    // Registra reserva no banco (incrementa estoque_reservado)
+    await sql`
+      UPDATE produto_empresa 
+      SET estoque_reservado = estoque_reservado + ${quantidade}
+      WHERE produto_id = ${produtoId} AND empresa_id = ${empresaId}
+    `;
 
     return true;
   }
@@ -254,17 +210,11 @@ export class ProdutoService {
     reservaId: string
   ): Promise<void> {
     // Atualiza no banco (decrementa reserva)
-    await prisma.produtoEmpresa.update({
-      where: {
-        produto_id_empresa_id: {
-          produto_id: produtoId,
-          empresa_id: empresaId
-        }
-      },
-      data: {
-        estoque_reservado: { decrement: 0 } // Seria necessário saber a quantidade exata
-      }
-    });
+    await sql`
+      UPDATE produto_empresa 
+      SET estoque_reservado = GREATEST(0, estoque_reservado - 1)
+      WHERE produto_id = ${produtoId} AND empresa_id = ${empresaId}
+    `;
   }
 
   /**
@@ -275,27 +225,28 @@ export class ProdutoService {
     skip: number = 0,
     take: number = 50
   ): Promise<Array<Produto & { estoque: ProdutoEmpresa }>> {
-    const produtosEmpresa = await prisma.produtoEmpresa.findMany({
-      where: { empresa_id: empresaId },
-      skip,
-      take,
-      include: { produto: true }
-    });
+    const produtosEmpresa = await sql`
+      SELECT pe.*, p.* 
+      FROM produto_empresa pe
+      JOIN produtos p ON p.id = pe.produto_id
+      WHERE pe.empresa_id = ${empresaId}
+      LIMIT ${take} OFFSET ${skip}
+    `;
 
-    return produtosEmpresa.map(pe => ({
-      id: pe.produto.id,
-      codigo: pe.produto.codigo,
-      descricao: pe.produto.descricao,
-      descricaoComplementar: pe.produto.descricao_complementar || undefined,
-      ncm: pe.produto.ncm,
-      cest: pe.produto.cest || undefined,
-      cfop: pe.produto.cfop || undefined,
-      unidade: pe.produto.unidade,
-      precoBase: pe.produto.preco_base ? parseFloat(pe.produto.preco_base.toString()) : undefined,
-      tipo: pe.produto.tipo as any,
-      ativo: pe.produto.ativo,
-      createdAt: pe.produto.created_at,
-      updatedAt: pe.produto.updated_at,
+    return produtosEmpresa.map((pe: any) => ({
+      id: pe.produto_id,
+      codigo: pe.codigo,
+      descricao: pe.descricao,
+      descricaoComplementar: pe.descricao_complementar || undefined,
+      ncm: pe.ncm,
+      cest: pe.cest || undefined,
+      cfop: pe.cfop || undefined,
+      unidade: pe.unidade,
+      precoBase: pe.preco_base ? parseFloat(pe.preco_base.toString()) : undefined,
+      tipo: pe.tipo as any,
+      ativo: pe.ativo,
+      createdAt: pe.created_at,
+      updatedAt: pe.updated_at,
       estoque: {
         id: pe.id,
         produtoId: pe.produto_id,

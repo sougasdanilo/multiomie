@@ -1,4 +1,4 @@
-import { prisma } from '../config/database.js';
+import { sql } from '../config/database.js';
 import { OmieIntegrationService } from '../integrations/OmieServices.js';
 export class ClienteService {
     omieIntegration;
@@ -6,32 +6,27 @@ export class ClienteService {
         this.omieIntegration = new OmieIntegrationService();
     }
     async cadastrarCliente(dados) {
-        const existente = await prisma.cliente.findUnique({
-            where: { cpf_cnpj: dados.cpfCnpj }
-        });
-        if (existente) {
+        const existente = await sql `
+      SELECT * FROM clientes WHERE cpf_cnpj = ${dados.cpfCnpj} LIMIT 1
+    `;
+        if (existente.length) {
             throw new Error(`Cliente com CPF/CNPJ ${dados.cpfCnpj} já existe`);
         }
-        const cliente = await prisma.cliente.create({
-            data: {
-                nome: dados.nome,
-                cpf_cnpj: dados.cpfCnpj,
-                email: dados.email,
-                telefone: dados.telefone,
-                celular: dados.celular,
-                endereco: dados.endereco,
-                ie: dados.dadosFiscais?.ie,
-                im: dados.dadosFiscais?.im,
-                tipo_contribuinte: dados.dadosFiscais?.tipoContribuinte
-            }
-        });
-        const empresas = await prisma.empresa.findMany({
-            where: { ativa: true }
-        });
+        const cliente = await sql `
+      INSERT INTO clientes (
+        nome, cpf_cnpj, email, telefone, celular, endereco, 
+        ie, im, tipo_contribuinte
+      ) VALUES (
+        ${dados.nome}, ${dados.cpfCnpj}, ${dados.email}, ${dados.telefone}, 
+        ${dados.celular}, ${JSON.stringify(dados.endereco)}, ${dados.dadosFiscais?.ie}, 
+        ${dados.dadosFiscais?.im}, ${dados.dadosFiscais?.tipoContribuinte}
+      ) RETURNING *
+    `;
+        const empresas = await sql `SELECT * FROM empresas WHERE ativa = true`;
         const resultados = [];
         for (const empresa of empresas) {
             try {
-                const codigoOmie = await this.sincronizarComEmpresa(cliente, empresa);
+                const codigoOmie = await this.sincronizarComEmpresa(cliente[0], empresa);
                 resultados.push({
                     empresaId: empresa.id,
                     empresaNome: empresa.nome,
@@ -49,19 +44,16 @@ export class ClienteService {
             }
         }
         return {
-            cliente: this.mapToEntity(cliente),
+            cliente: this.mapToEntity(cliente[0]),
             sincronizacoes: resultados
         };
     }
     async sincronizarComEmpresa(cliente, empresa) {
-        const existente = await prisma.clienteEmpresa.findUnique({
-            where: {
-                cliente_id_empresa_id: {
-                    cliente_id: cliente.id,
-                    empresa_id: empresa.id
-                }
-            }
-        });
+        const existente = await sql `
+      SELECT * FROM cliente_empresa 
+      WHERE cliente_id = ${cliente.id} AND empresa_id = ${empresa.id}
+      LIMIT 1
+    `;
         const omieService = this.omieIntegration.getClienteService({
             id: empresa.id,
             nome: empresa.nome,
@@ -94,122 +86,86 @@ export class ClienteService {
         };
         let resultado;
         try {
-            if (existente?.codigo_omie) {
+            if (existente.length && existente[0].codigo_omie) {
                 resultado = await omieService.alterar({
                     ...payload,
-                    codigo_cliente_omie: parseInt(existente.codigo_omie)
+                    codigo_cliente_omie: parseInt(existente[0].codigo_omie)
                 });
             }
             else {
                 resultado = await omieService.incluir(payload);
             }
-            await prisma.clienteEmpresa.upsert({
-                where: {
-                    cliente_id_empresa_id: {
-                        cliente_id: cliente.id,
-                        empresa_id: empresa.id
-                    }
-                },
-                create: {
-                    cliente_id: cliente.id,
-                    empresa_id: empresa.id,
-                    codigo_omie: resultado.codigo_cliente_omie.toString(),
-                    sync_status: 'SYNCED',
-                    last_sync: new Date()
-                },
-                update: {
-                    codigo_omie: resultado.codigo_cliente_omie.toString(),
-                    sync_status: 'SYNCED',
-                    last_sync: new Date(),
-                    sync_error: null
-                }
-            });
+            if (existente.length) {
+                await sql `
+          UPDATE cliente_empresa 
+          SET codigo_omie = ${resultado.codigo_cliente_omie.toString()}, 
+              sync_status = 'SYNCED',
+              last_sync = NOW()
+          WHERE cliente_id = ${cliente.id} AND empresa_id = ${empresa.id}
+        `;
+            }
+            else {
+                await sql `
+          INSERT INTO cliente_empresa (
+            cliente_id, empresa_id, codigo_omie, sync_status, last_sync
+          ) VALUES (
+            ${cliente.id}, ${empresa.id}, ${resultado.codigo_cliente_omie.toString()}, 
+            'SYNCED', NOW()
+          )
+        `;
+            }
             return resultado.codigo_cliente_omie.toString();
         }
         catch (error) {
-            await prisma.clienteEmpresa.upsert({
-                where: {
-                    cliente_id_empresa_id: {
-                        cliente_id: cliente.id,
-                        empresa_id: empresa.id
-                    }
-                },
-                create: {
-                    cliente_id: cliente.id,
-                    empresa_id: empresa.id,
-                    codigo_omie: existente?.codigo_omie || '',
-                    sync_status: 'ERROR',
-                    sync_error: error.message,
-                    last_sync: new Date()
-                },
-                update: {
-                    sync_status: 'ERROR',
-                    sync_error: error.message,
-                    last_sync: new Date()
-                }
-            });
+            if (existente.length) {
+                await sql `UPDATE cliente_empresa SET sync_status = 'ERROR', sync_error = ${error.message}, last_sync = NOW() WHERE cliente_id = ${cliente.id} AND empresa_id = ${empresa.id}`;
+            }
+            else {
+                await sql `INSERT INTO cliente_empresa (cliente_id, empresa_id, sync_status, sync_error, last_sync) VALUES (${cliente.id}, ${empresa.id}, 'ERROR', ${error.message}, NOW())`;
+            }
             throw error;
         }
     }
     async obterCodigoOmie(clienteId, empresaId) {
-        const vinculo = await prisma.clienteEmpresa.findUnique({
-            where: {
-                cliente_id_empresa_id: {
-                    cliente_id: clienteId,
-                    empresa_id: empresaId
-                }
-            }
-        });
-        if (!vinculo || vinculo.sync_status !== 'SYNCED') {
-            const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
-            const empresa = await prisma.empresa.findUnique({ where: { id: empresaId } });
-            if (!cliente || !empresa) {
+        const vinculo = await sql `SELECT * FROM cliente_empresa WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} LIMIT 1`;
+        if (!vinculo.length || vinculo[0].sync_status !== 'SYNCED') {
+            const cliente = await sql `SELECT * FROM clientes WHERE id = ${clienteId} LIMIT 1`;
+            const empresa = await sql `SELECT * FROM empresas WHERE id = ${empresaId} LIMIT 1`;
+            if (!cliente.length || !empresa.length) {
                 throw new Error('Cliente ou empresa não encontrado');
             }
-            return await this.sincronizarComEmpresa(cliente, empresa);
+            return await this.sincronizarComEmpresa(cliente[0], empresa[0]);
         }
-        return vinculo.codigo_omie;
+        return vinculo[0].codigo_omie;
     }
     async listarClientes(skip = 0, take = 50) {
-        const clientes = await prisma.cliente.findMany({
-            skip,
-            take,
-            orderBy: { created_at: 'desc' }
-        });
-        return clientes.map(c => this.mapToEntity(c));
+        const clientes = await sql `SELECT * FROM clientes ORDER BY created_at DESC LIMIT ${take} OFFSET ${skip}`;
+        return clientes.map((c) => this.mapToEntity(c));
     }
     async obterCliente(id) {
-        const cliente = await prisma.cliente.findUnique({
-            where: { id },
-            include: {
-                clienteEmpresas: {
-                    include: { empresa: true }
-                }
-            }
-        });
-        if (!cliente)
+        const cliente = await sql `SELECT * FROM clientes WHERE id = ${id} LIMIT 1`;
+        if (!cliente.length)
             return null;
-        return this.mapToEntity(cliente);
+        return this.mapToEntity(cliente[0]);
     }
     async obterClientePorCpfCnpj(cpfCnpj) {
-        const cliente = await prisma.cliente.findUnique({
-            where: { cpf_cnpj: cpfCnpj }
-        });
-        if (!cliente)
+        const cliente = await sql `SELECT * FROM clientes WHERE cpf_cnpj = ${cpfCnpj} LIMIT 1`;
+        if (!cliente.length)
             return null;
-        return this.mapToEntity(cliente);
+        return this.mapToEntity(cliente[0]);
     }
     async reprocessarPendentes() {
-        const pendentes = await prisma.clienteEmpresa.findMany({
-            where: { sync_status: 'ERROR' },
-            include: { cliente: true, empresa: true }
-        });
+        const pendentes = await sql `SELECT * FROM cliente_empresa WHERE sync_status IN ('PENDING', 'ERROR')`;
         let sucessos = 0;
         let falhas = 0;
         for (const pendente of pendentes) {
             try {
-                await this.sincronizarComEmpresa(pendente.cliente, pendente.empresa);
-                sucessos++;
+                const cliente = await sql `SELECT * FROM clientes WHERE id = ${pendente.cliente_id} LIMIT 1`;
+                const empresa = await sql `SELECT * FROM empresas WHERE id = ${pendente.empresa_id} LIMIT 1`;
+                if (cliente.length && empresa.length) {
+                    await this.sincronizarComEmpresa(cliente[0], empresa[0]);
+                    sucessos++;
+                }
             }
             catch (error) {
                 falhas++;

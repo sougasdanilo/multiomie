@@ -1,4 +1,4 @@
-import { prisma } from '../config/database.js';
+import { sql, prisma } from '../config/database.js';
 import { Empresa } from '../entities/index.js';
 import { encrypt, decrypt } from '../utils/encryption.js';
 import { OmieIntegrationService } from '../integrations/OmieServices.js';
@@ -33,20 +33,16 @@ export class EmpresaService {
    */
   async criar(dados: CriarEmpresaDTO): Promise<Empresa> {
     // Valida CNPJ único
-    const existente = await prisma.empresa.findUnique({
-      where: { cnpj: dados.cnpj }
-    });
+    const existente = await sql`SELECT * FROM empresas WHERE cnpj = ${dados.cnpj} LIMIT 1`;
 
-    if (existente) {
+    if (existente.length) {
       throw new Error(`Empresa com CNPJ ${dados.cnpj} já existe`);
     }
 
     // Valida app_key único
-    const appKeyExistente = await prisma.empresa.findFirst({
-      where: { app_key: dados.appKey }
-    });
+    const appKeyExistente = await sql`SELECT * FROM empresas WHERE app_key = ${dados.appKey} LIMIT 1`;
 
-    if (appKeyExistente) {
+    if (appKeyExistente.length) {
       throw new Error('App Key já está em uso por outra empresa');
     }
 
@@ -54,124 +50,106 @@ export class EmpresaService {
     const appSecretCriptografado = encrypt(dados.appSecret);
 
     // Cria empresa
-    const empresa = await prisma.empresa.create({
-      data: {
-        nome: dados.nome,
-        cnpj: dados.cnpj,
-        nome_fantasia: dados.nomeFantasia,
-        app_key: dados.appKey,
-        app_secret: appSecretCriptografado,
-        configuracoes: dados.configuracoes as any,
-        ativa: true
-      }
-    });
+    const empresa = await sql`
+      INSERT INTO empresas (nome, cnpj, nome_fantasia, app_key, app_secret, configuracoes, ativa)
+      VALUES (${dados.nome}, ${dados.cnpj}, ${dados.nomeFantasia}, ${dados.appKey}, ${appSecretCriptografado}, ${JSON.stringify(dados.configuracoes)}, ${true})
+      RETURNING *
+    `;
 
-    return this.mapToEntity(empresa);
+    return this.mapToEntity(empresa[0]);
   }
 
   /**
    * Atualiza empresa existente
    */
   async atualizar(id: string, dados: AtualizarEmpresaDTO): Promise<Empresa> {
-    const empresa = await prisma.empresa.findUnique({ where: { id } });
+    const empresa = await sql`SELECT * FROM empresas WHERE id = ${id} LIMIT 1`;
 
-    if (!empresa) {
+    if (!empresa.length) {
       throw new Error('Empresa não encontrada');
     }
 
-    const updateData: any = {};
-
-    if (dados.nome) updateData.nome = dados.nome;
-    if (dados.nomeFantasia !== undefined) updateData.nome_fantasia = dados.nomeFantasia;
-    if (dados.ativa !== undefined) updateData.ativa = dados.ativa;
-    if (dados.configuracoes) updateData.configuracoes = dados.configuracoes;
-    
     if (dados.appKey) {
-      const appKeyExistente = await prisma.empresa.findFirst({
-        where: { app_key: dados.appKey, NOT: { id } }
-      });
-      if (appKeyExistente) {
+      const appKeyExistente = await sql`SELECT * FROM empresas WHERE app_key = ${dados.appKey} AND id != ${id} LIMIT 1`;
+      if (appKeyExistente.length) {
         throw new Error('App Key já está em uso por outra empresa');
       }
-      updateData.app_key = dados.appKey;
     }
 
-    if (dados.appSecret) {
-      updateData.app_secret = encrypt(dados.appSecret);
-    }
+    const empresaAtualizada = await sql`
+      UPDATE empresas 
+      SET 
+        nome = COALESCE(${dados.nome}, nome),
+        nome_fantasia = COALESCE(${dados.nomeFantasia}, nome_fantasia),
+        ativa = COALESCE(${dados.ativa}, ativa),
+        configuracoes = COALESCE(${JSON.stringify(dados.configuracoes)}, configuracoes),
+        app_key = COALESCE(${dados.appKey}, app_key),
+        app_secret = COALESCE(${dados.appSecret ? encrypt(dados.appSecret) : null}, app_secret)
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
-    const empresaAtualizada = await prisma.empresa.update({
-      where: { id },
-      data: updateData
-    });
-
-    return this.mapToEntity(empresaAtualizada);
+    return this.mapToEntity(empresaAtualizada[0]);
   }
 
   /**
    * Lista todas as empresas
    */
   async listar(ativo?: boolean): Promise<Empresa[]> {
-    const where: any = {};
+    let empresas;
     if (ativo !== undefined) {
-      where.ativa = ativo;
+      empresas = await sql`SELECT * FROM empresas WHERE ativa = ${ativo} ORDER BY nome ASC`;
+    } else {
+      empresas = await sql`SELECT * FROM empresas ORDER BY nome ASC`;
     }
 
-    const empresas = await prisma.empresa.findMany({
-      where,
-      orderBy: { nome: 'asc' }
-    });
-
-    return empresas.map(e => this.mapToEntity(e));
+    return empresas.map((e: any) => this.mapToEntity(e));
   }
 
   /**
    * Obtém empresa por ID
    */
   async obterPorId(id: string): Promise<Empresa | null> {
-    const empresa = await prisma.empresa.findUnique({ where: { id } });
+    const empresa = await sql`SELECT * FROM empresas WHERE id = ${id} LIMIT 1`;
 
-    if (!empresa) return null;
+    if (!empresa.length) return null;
 
-    return this.mapToEntity(empresa);
+    return this.mapToEntity(empresa[0]);
   }
 
   /**
    * Obtém empresa por CNPJ
    */
   async obterPorCnpj(cnpj: string): Promise<Empresa | null> {
-    const empresa = await prisma.empresa.findUnique({ where: { cnpj } });
+    const empresa = await sql`SELECT * FROM empresas WHERE cnpj = ${cnpj} LIMIT 1`;
 
-    if (!empresa) return null;
+    if (!empresa.length) return null;
 
-    return this.mapToEntity(empresa);
+    return this.mapToEntity(empresa[0]);
   }
 
   /**
    * Obtém empresa por App Key
    */
   async obterPorAppKey(appKey: string): Promise<Empresa | null> {
-    const empresa = await prisma.empresa.findFirst({ where: { app_key: appKey } });
+    const empresa = await sql`SELECT * FROM empresas WHERE app_key = ${appKey} LIMIT 1`;
 
-    if (!empresa) return null;
+    if (!empresa.length) return null;
 
-    return this.mapToEntity(empresa);
+    return this.mapToEntity(empresa[0]);
   }
 
   /**
    * Remove empresa (soft delete via ativa=false)
    */
   async desativar(id: string): Promise<void> {
-    const empresa = await prisma.empresa.findUnique({ where: { id } });
+    const empresa = await sql`SELECT * FROM empresas WHERE id = ${id} LIMIT 1`;
 
-    if (!empresa) {
+    if (!empresa.length) {
       throw new Error('Empresa não encontrada');
     }
 
-    await prisma.empresa.update({
-      where: { id },
-      data: { ativa: false }
-    });
+    await sql`UPDATE empresas SET ativa = false WHERE id = ${id}`;
   }
 
   /**
@@ -211,9 +189,9 @@ export class EmpresaService {
     totalPedidos: number;
     totalNotasFiscais: number;
   }> {
-    const empresa = await prisma.empresa.findUnique({ where: { id } });
+    const empresa = await sql`SELECT * FROM empresas WHERE id = ${id} LIMIT 1`;
 
-    if (!empresa) {
+    if (!empresa.length) {
       throw new Error('Empresa não encontrada');
     }
 
@@ -223,17 +201,17 @@ export class EmpresaService {
       totalPedidos,
       totalNotasFiscais
     ] = await Promise.all([
-      prisma.clienteEmpresa.count({ where: { empresa_id: id } }),
-      prisma.produtoEmpresa.count({ where: { empresa_id: id } }),
-      prisma.pedidoEmpresa.count({ where: { empresa_id: id } }),
-      prisma.notaFiscal.count({ where: { empresa_id: id } })
+      sql`SELECT COUNT(*) as count FROM cliente_empresa WHERE empresa_id = ${id}`,
+      sql`SELECT COUNT(*) as count FROM produto_empresa WHERE empresa_id = ${id}`,
+      sql`SELECT COUNT(*) as count FROM pedido_empresa WHERE empresa_id = ${id}`,
+      sql`SELECT COUNT(*) as count FROM notas_fiscais WHERE empresa_id = ${id}`
     ]);
 
     return {
-      totalClientes,
-      totalProdutos,
-      totalPedidos,
-      totalNotasFiscais
+      totalClientes: parseInt(totalClientes[0].count),
+      totalProdutos: parseInt(totalProdutos[0].count),
+      totalPedidos: parseInt(totalPedidos[0].count),
+      totalNotasFiscais: parseInt(totalNotasFiscais[0].count)
     };
   }
 

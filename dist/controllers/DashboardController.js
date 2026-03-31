@@ -1,4 +1,4 @@
-import { prisma } from '../config/database.js';
+import { sql } from '../config/database.js';
 import { OmieIntegrationService } from '../integrations/OmieServices.js';
 import { omieCircuitBreaker } from '../integrations/CircuitBreaker.js';
 import { logger } from '../middlewares/logger.js';
@@ -10,45 +10,42 @@ export class DashboardController {
     async getResumo(req, res) {
         try {
             const [totalEmpresas, totalClientes, totalProdutos, totalPedidos, totalNotasFiscais, pedidosPorStatus, empresasAtivas] = await Promise.all([
-                prisma.empresa.count(),
-                prisma.cliente.count(),
-                prisma.produto.count(),
-                prisma.pedido.count(),
-                prisma.notaFiscal.count(),
-                prisma.pedido.groupBy({
-                    by: ['status'],
-                    _count: { id: true }
-                }),
-                prisma.empresa.count({ where: { ativa: true } })
+                sql `SELECT COUNT(*) as count FROM empresas`,
+                sql `SELECT COUNT(*) as count FROM clientes`,
+                sql `SELECT COUNT(*) as count FROM produtos`,
+                sql `SELECT COUNT(*) as count FROM pedidos`,
+                sql `SELECT COUNT(*) as count FROM notas_fiscais`,
+                sql `SELECT status, COUNT(*) as count FROM pedidos GROUP BY status`,
+                sql `SELECT COUNT(*) as count FROM empresas WHERE ativa = true`
             ]);
-            const clientesSincronizados = await prisma.clienteEmpresa.count({
-                where: { sync_status: 'SYNCED' }
-            });
-            const clientesPendentes = await prisma.clienteEmpresa.count({
-                where: { sync_status: 'PENDING' }
-            });
-            const clientesErro = await prisma.clienteEmpresa.count({
-                where: { sync_status: 'ERROR' }
-            });
+            const clientesSincronizados = await sql `
+        SELECT COUNT(*) as count FROM cliente_empresa WHERE sync_status = 'SYNCED'
+      `;
+            const clientesPendentes = await sql `
+        SELECT COUNT(*) as count FROM cliente_empresa WHERE sync_status = 'PENDING'
+      `;
+            const clientesErro = await sql `
+        SELECT COUNT(*) as count FROM cliente_empresa WHERE sync_status = 'ERROR'
+      `;
             res.json({
                 success: true,
                 data: {
                     resumo: {
-                        totalEmpresas,
-                        empresasAtivas,
-                        totalClientes,
-                        totalProdutos,
-                        totalPedidos,
-                        totalNotasFiscais
+                        totalEmpresas: totalEmpresas[0].count,
+                        empresasAtivas: empresasAtivas[0].count,
+                        totalClientes: totalClientes[0].count,
+                        totalProdutos: totalProdutos[0].count,
+                        totalPedidos: totalPedidos[0].count,
+                        totalNotasFiscais: totalNotasFiscais[0].count
                     },
-                    pedidosPorStatus: pedidosPorStatus.map(p => ({
+                    pedidosPorStatus: pedidosPorStatus.map((p) => ({
                         status: p.status,
-                        quantidade: p._count.id
+                        quantidade: parseInt(p.count)
                     })),
                     sincronizacao: {
-                        clientesSincronizados,
-                        clientesPendentes,
-                        clientesErro
+                        clientesSincronizados: clientesSincronizados[0].count,
+                        clientesPendentes: clientesPendentes[0].count,
+                        clientesErro: clientesErro[0].count
                     }
                 }
             });
@@ -63,19 +60,16 @@ export class DashboardController {
     }
     async getStatusIntegracao(req, res) {
         try {
-            const empresas = await prisma.empresa.findMany({
-                where: { ativa: true },
-                include: {
-                    _count: {
-                        select: {
-                            clienteEmpresas: true,
-                            produtoEmpresas: true,
-                            pedidoEmpresas: true,
-                            notasFiscais: true
-                        }
-                    }
-                }
-            });
+            const empresas = await sql `
+        SELECT 
+          e.*,
+          (SELECT COUNT(*) FROM cliente_empresa WHERE empresa_id = e.id) as clientes_count,
+          (SELECT COUNT(*) FROM produto_empresa WHERE empresa_id = e.id) as produtos_count,
+          (SELECT COUNT(*) FROM pedido_empresa WHERE empresa_id = e.id) as pedidos_count,
+          (SELECT COUNT(*) FROM notas_fiscais WHERE empresa_id = e.id) as notas_count
+        FROM empresas e 
+        WHERE e.ativa = true
+      `;
             const statusEmpresas = [];
             for (const empresa of empresas) {
                 try {
@@ -99,10 +93,10 @@ export class DashboardController {
                         cnpj: empresa.cnpj,
                         status: 'connected',
                         estatisticas: {
-                            clientes: empresa._count.clienteEmpresas,
-                            produtos: empresa._count.produtoEmpresas,
-                            pedidos: empresa._count.pedidoEmpresas,
-                            notasFiscais: empresa._count.notasFiscais
+                            clientes: parseInt(empresa.clientes_count),
+                            produtos: parseInt(empresa.produtos_count),
+                            pedidos: parseInt(empresa.pedidos_count),
+                            notasFiscais: parseInt(empresa.notas_count)
                         }
                     });
                 }
@@ -164,20 +158,11 @@ export class DashboardController {
     async getPedidosRecentes(req, res) {
         try {
             const limit = parseInt(req.query.limit) || 10;
-            const pedidos = await prisma.pedido.findMany({
-                take: limit,
-                orderBy: { created_at: 'desc' },
-                include: {
-                    cliente: true,
-                    itens: {
-                        include: {
-                            produto: true,
-                            produtoEmpresa: { include: { empresa: true } }
-                        }
-                    },
-                    pedidoEmpresas: { include: { empresa: true } }
-                }
-            });
+            const pedidos = await sql `
+        SELECT * FROM pedidos 
+        ORDER BY created_at DESC 
+        LIMIT ${limit}
+      `;
             res.json({
                 success: true,
                 data: pedidos
@@ -194,18 +179,11 @@ export class DashboardController {
     async getNotasFiscaisRecentes(req, res) {
         try {
             const limit = parseInt(req.query.limit) || 10;
-            const notas = await prisma.notaFiscal.findMany({
-                take: limit,
-                orderBy: { created_at: 'desc' },
-                include: {
-                    empresa: true,
-                    pedido: {
-                        include: {
-                            cliente: true
-                        }
-                    }
-                }
-            });
+            const notas = await sql `
+        SELECT * FROM notas_fiscais 
+        ORDER BY created_at DESC 
+        LIMIT ${limit}
+      `;
             res.json({
                 success: true,
                 data: notas
@@ -223,7 +201,7 @@ export class DashboardController {
         try {
             let databaseStatus = 'ok';
             try {
-                await prisma.$queryRaw `SELECT 1`;
+                await sql `SELECT 1`;
             }
             catch (error) {
                 databaseStatus = 'error';

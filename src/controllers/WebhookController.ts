@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { OmieIntegrationService } from '../integrations/OmieServices.js';
-import { prisma } from '../config/database.js';
+import { sql } from '../config/database.js';
 
 export class WebhookController {
   private omieIntegration: OmieIntegrationService;
@@ -25,54 +25,63 @@ export class WebhookController {
       const nfeData = payload;
 
       // Busca pedido pelo número de referência
-      const pedidoEmpresa = await prisma.pedidoEmpresa.findFirst({
-        where: {
-          empresa_id: empresa.id,
-          numero_pedido_omie: nfeData.idPedido
-        }
-      });
+      const pedidoEmpresa = await sql`
+        SELECT * FROM pedido_empresa 
+        WHERE empresa_id = ${empresa.id} 
+        AND numero_pedido_omie = ${nfeData.idPedido}
+        LIMIT 1
+      `;
 
-      if (!pedidoEmpresa) {
+      if (!pedidoEmpresa.length) {
         res.status(200).json({ message: 'ignored' });
         return;
       }
 
       // Atualiza ou cria NF-e
-      await prisma.notaFiscal.upsert({
-        where: { chave_acesso: nfeData.chaveNFe },
-        create: {
-          pedido_id: pedidoEmpresa.pedido_id,
-          empresa_id: empresa.id,
-          numero: nfeData.numero,
-          serie: nfeData.serie,
-          chave_acesso: nfeData.chaveNFe,
-          protocolo: nfeData.protocolo,
-          data_emissao: new Date(nfeData.dataEmissao),
-          data_saida: nfeData.dataSaida ? new Date(nfeData.dataSaida) : null,
-          valor_produtos: nfeData.valorProdutos || 0,
-          valor_desconto: nfeData.valorDesconto || 0,
-          valor_total: nfeData.valorTotal || 0,
-          xml_url: nfeData.urlXML,
-          pdf_url: nfeData.urlDANFE,
-          status: 'EMITIDA',
-          dados_omie: nfeData
-        },
-        update: {
-          protocolo: nfeData.protocolo,
-          xml_url: nfeData.urlXML,
-          pdf_url: nfeData.urlDANFE,
-          dados_omie: nfeData
-        }
-      });
+      const existingNfe = await sql`
+        SELECT id FROM notas_fiscais 
+        WHERE chave_acesso = ${nfeData.chaveNFe}
+        LIMIT 1
+      `;
+
+      if (existingNfe.length === 0) {
+        // Cria nova NF-e
+        await sql`
+          INSERT INTO notas_fiscais (
+            pedido_id, empresa_id, numero, serie, chave_acesso, 
+            protocolo, data_emissao, data_saida, valor_produtos, 
+            valor_desconto, valor_total, xml_url, pdf_url, status, dados_omie
+          ) VALUES (
+            ${pedidoEmpresa[0].pedido_id}, ${empresa.id}, ${nfeData.numero}, 
+            ${nfeData.serie}, ${nfeData.chaveNFe}, ${nfeData.protocolo},
+            ${new Date(nfeData.dataEmissao)}, 
+            ${nfeData.dataSaida ? new Date(nfeData.dataSaida) : null},
+            ${nfeData.valorProdutos || 0}, ${nfeData.valorDesconto || 0}, 
+            ${nfeData.valorTotal || 0}, ${nfeData.urlXML}, ${nfeData.urlDANFE},
+            'EMITIDA', ${nfeData}
+          )
+        `;
+      } else {
+        // Atualiza NF-e existente
+        await sql`
+          UPDATE notas_fiscais SET 
+            protocolo = ${nfeData.protocolo},
+            xml_url = ${nfeData.urlXML},
+            pdf_url = ${nfeData.urlDANFE},
+            dados_omie = ${nfeData}
+          WHERE chave_acesso = ${nfeData.chaveNFe}
+        `;
+      }
 
       // Atualiza status do pedido_empresa
-      await prisma.pedidoEmpresa.update({
-        where: { id: pedidoEmpresa.id },
-        data: { status_omie: 'FATURADO' }
-      });
+      await sql`
+        UPDATE pedido_empresa 
+        SET status_omie = 'FATURADO'
+        WHERE id = ${pedidoEmpresa[0].id}
+      `;
 
       // Verifica se todas as empresas faturaram
-      await this.verificarConclusaoFaturamento(pedidoEmpresa.pedido_id);
+      await this.verificarConclusaoFaturamento(pedidoEmpresa[0].pedido_id);
 
       res.status(200).json({ message: 'processed' });
     } catch (error: any) {
@@ -93,29 +102,27 @@ export class WebhookController {
 
       const pedidoData = payload;
 
-      const pedidoEmpresa = await prisma.pedidoEmpresa.findFirst({
-        where: {
-          empresa_id: empresa.id,
-          codigo_pedido_omie: pedidoData.codigoPedido
-        }
-      });
+      const pedidoEmpresa = await sql`
+        SELECT * FROM pedido_empresa 
+        WHERE empresa_id = ${empresa.id} 
+        AND codigo_pedido_omie = ${pedidoData.codigoPedido}
+        LIMIT 1
+      `;
 
-      if (!pedidoEmpresa) {
+      if (!pedidoEmpresa.length) {
         res.status(200).json({ message: 'ignored' });
         return;
       }
 
       // Atualiza status
-      await prisma.pedidoEmpresa.update({
-        where: { id: pedidoEmpresa.id },
-        data: {
-          status_omie: 'FATURADO',
-          resposta_omie: pedidoData
-        }
-      });
+      await sql`
+        UPDATE pedido_empresa 
+        SET status_omie = 'FATURADO', resposta_omie = ${pedidoData}
+        WHERE id = ${pedidoEmpresa[0].id}
+      `;
 
       // Verifica conclusão
-      await this.verificarConclusaoFaturamento(pedidoEmpresa.pedido_id);
+      await this.verificarConclusaoFaturamento(pedidoEmpresa[0].pedido_id);
 
       res.status(200).json({ message: 'processed' });
     } catch (error: any) {
@@ -125,22 +132,21 @@ export class WebhookController {
   }
 
   private async verificarConclusaoFaturamento(pedidoId: string): Promise<void> {
-    const pedidoEmpresas = await prisma.pedidoEmpresa.findMany({
-      where: { pedido_id: pedidoId }
-    });
+    const pedidoEmpresas = await sql`
+      SELECT * FROM pedido_empresa 
+      WHERE pedido_id = ${pedidoId}
+    `;
 
     const todasFaturadas = pedidoEmpresas.every(
-      pe => pe.status_omie === 'FATURADO'
+      (pe: any) => pe.status_omie === 'FATURADO'
     );
 
     if (todasFaturadas) {
-      await prisma.pedido.update({
-        where: { id: pedidoId },
-        data: {
-          status: 'CONCLUIDO',
-          faturado_at: new Date()
-        }
-      });
+      await sql`
+        UPDATE pedidos 
+        SET status = 'CONCLUIDO', faturado_at = NOW()
+        WHERE id = ${pedidoId}
+      `;
     }
   }
 }

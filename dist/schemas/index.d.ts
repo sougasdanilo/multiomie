@@ -12,8 +12,8 @@ export declare const enderecoSchema: z.ZodObject<{
     cep: z.ZodString;
     codigoPais: z.ZodDefault<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    numero: string;
     logradouro: string;
+    numero: string;
     bairro: string;
     cidade: string;
     estado: string;
@@ -21,8 +21,8 @@ export declare const enderecoSchema: z.ZodObject<{
     codigoPais: string;
     complemento?: string | undefined;
 }, {
-    numero: string;
     logradouro: string;
+    numero: string;
     bairro: string;
     cidade: string;
     estado: string;
@@ -55,15 +55,15 @@ export declare const criarEmpresaSchema: z.ZodObject<{
     cnpj: string;
     appKey: string;
     appSecret: string;
-    configuracoes?: Record<string, unknown> | undefined;
     nomeFantasia?: string | undefined;
+    configuracoes?: Record<string, unknown> | undefined;
 }, {
     nome: string;
     cnpj: string;
     appKey: string;
     appSecret: string;
-    configuracoes?: Record<string, unknown> | undefined;
     nomeFantasia?: string | undefined;
+    configuracoes?: Record<string, unknown> | undefined;
 }>;
 export declare const atualizarEmpresaSchema: z.ZodObject<{
     nome: z.ZodOptional<z.ZodString>;
@@ -74,18 +74,18 @@ export declare const atualizarEmpresaSchema: z.ZodObject<{
     configuracoes: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
 }, "strip", z.ZodTypeAny, {
     nome?: string | undefined;
-    ativa?: boolean | undefined;
-    configuracoes?: Record<string, unknown> | undefined;
+    nomeFantasia?: string | undefined;
     appKey?: string | undefined;
     appSecret?: string | undefined;
-    nomeFantasia?: string | undefined;
+    ativa?: boolean | undefined;
+    configuracoes?: Record<string, unknown> | undefined;
 }, {
     nome?: string | undefined;
-    ativa?: boolean | undefined;
-    configuracoes?: Record<string, unknown> | undefined;
+    nomeFantasia?: string | undefined;
     appKey?: string | undefined;
     appSecret?: string | undefined;
-    nomeFantasia?: string | undefined;
+    ativa?: boolean | undefined;
+    configuracoes?: Record<string, unknown> | undefined;
 }>;
 export declare const criarClienteSchema: z.ZodObject<{
     nome: z.ZodString;
@@ -103,8 +103,8 @@ export declare const criarClienteSchema: z.ZodObject<{
         cep: z.ZodString;
         codigoPais: z.ZodDefault<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -112,8 +112,8 @@ export declare const criarClienteSchema: z.ZodObject<{
         codigoPais: string;
         complemento?: string | undefined;
     }, {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -141,8 +141,8 @@ export declare const criarClienteSchema: z.ZodObject<{
     telefone?: string | undefined;
     celular?: string | undefined;
     endereco?: {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -162,8 +162,8 @@ export declare const criarClienteSchema: z.ZodObject<{
     telefone?: string | undefined;
     celular?: string | undefined;
     endereco?: {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -192,8 +192,8 @@ export declare const atualizarClienteSchema: z.ZodObject<{
         cep: z.ZodString;
         codigoPais: z.ZodDefault<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -201,8 +201,8 @@ export declare const atualizarClienteSchema: z.ZodObject<{
         codigoPais: string;
         complemento?: string | undefined;
     }, {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -229,8 +229,8 @@ export declare const atualizarClienteSchema: z.ZodObject<{
     telefone?: string | undefined;
     celular?: string | undefined;
     endereco?: {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -249,8 +249,8 @@ export declare const atualizarClienteSchema: z.ZodObject<{
     telefone?: string | undefined;
     celular?: string | undefined;
     endereco?: {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -280,20 +280,20 @@ export declare const criarProdutoSchema: z.ZodObject<{
     ncm: string;
     unidade: string;
     tipo: "PRODUTO" | "SERVICO" | "KIT";
+    descricaoComplementar?: string | undefined;
     cest?: string | undefined;
     cfop?: string | undefined;
-    descricaoComplementar?: string | undefined;
     precoBase?: number | undefined;
 }, {
     codigo: string;
     descricao: string;
     ncm: string;
     unidade: string;
+    descricaoComplementar?: string | undefined;
     cest?: string | undefined;
     cfop?: string | undefined;
-    tipo?: "PRODUTO" | "SERVICO" | "KIT" | undefined;
-    descricaoComplementar?: string | undefined;
     precoBase?: number | undefined;
+    tipo?: "PRODUTO" | "SERVICO" | "KIT" | undefined;
 }>;
 export declare const pedidoItemSchema: z.ZodObject<{
     produtoId: z.ZodString;
@@ -323,8 +323,8 @@ export declare const criarPedidoSchema: z.ZodObject<{
         cep: z.ZodString;
         codigoPais: z.ZodDefault<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -332,8 +332,8 @@ export declare const criarPedidoSchema: z.ZodObject<{
         codigoPais: string;
         complemento?: string | undefined;
     }, {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -364,18 +364,17 @@ export declare const criarPedidoSchema: z.ZodObject<{
     }>, "many">;
     usuarioId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    clienteId: string;
+    formaPagamento: string;
     itens: {
         produtoId: string;
         quantidade: number;
         percentualDesconto: number;
         precoUnitario?: number | undefined;
     }[];
-    clienteId: string;
-    formaPagamento: string;
-    observacoes?: string | undefined;
     enderecoEntrega?: {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -383,23 +382,23 @@ export declare const criarPedidoSchema: z.ZodObject<{
         codigoPais: string;
         complemento?: string | undefined;
     } | undefined;
+    observacoes?: string | undefined;
     observacaoInterna?: string | undefined;
     condicaoPagamento?: string | undefined;
     dataPrevisao?: string | Date | undefined;
     usuarioId?: string | undefined;
 }, {
+    clienteId: string;
+    formaPagamento: string;
     itens: {
         produtoId: string;
         quantidade: number;
         precoUnitario?: number | undefined;
         percentualDesconto?: number | undefined;
     }[];
-    clienteId: string;
-    formaPagamento: string;
-    observacoes?: string | undefined;
     enderecoEntrega?: {
-        numero: string;
         logradouro: string;
+        numero: string;
         bairro: string;
         cidade: string;
         estado: string;
@@ -407,6 +406,7 @@ export declare const criarPedidoSchema: z.ZodObject<{
         complemento?: string | undefined;
         codigoPais?: string | undefined;
     } | undefined;
+    observacoes?: string | undefined;
     observacaoInterna?: string | undefined;
     condicaoPagamento?: string | undefined;
     dataPrevisao?: string | Date | undefined;
@@ -416,11 +416,11 @@ export declare const paginationSchema: z.ZodObject<{
     skip: z.ZodDefault<z.ZodEffects<z.ZodString, number, string>>;
     take: z.ZodDefault<z.ZodEffects<z.ZodString, number, string>>;
 }, "strip", z.ZodTypeAny, {
-    take: number;
     skip: number;
+    take: number;
 }, {
-    take?: string | undefined;
     skip?: string | undefined;
+    take?: string | undefined;
 }>;
 export declare const idParamSchema: z.ZodObject<{
     id: z.ZodString;

@@ -1,6 +1,6 @@
 import { OmieClient, OmieClientFactory, OmieApiError } from './OmieClient.js';
 import { Empresa } from '../entities/index.js';
-import { prisma } from '../config/database.js';
+import { sql } from '../config/database.js';
 
 export class OmieClienteService {
   constructor(private omieClient: OmieClient) {}
@@ -143,23 +143,23 @@ export class OmieIntegrationService {
   }
 
   async getEmpresaByAppKey(appKey: string): Promise<Empresa | null> {
-    const empresa = await prisma.empresa.findFirst({
-      where: { app_key: appKey }
-    });
-
-    if (!empresa) return null;
+    const empresa = await sql`SELECT * FROM empresas WHERE app_key = ${appKey} LIMIT 1`;
+    
+    if (!empresa.length) {
+      return null;
+    }
 
     return {
-      id: empresa.id,
-      nome: empresa.nome,
-      cnpj: empresa.cnpj,
-      nomeFantasia: empresa.nome_fantasia || undefined,
-      appKey: empresa.app_key,
-      appSecret: empresa.app_secret,
-      ativa: empresa.ativa,
-      configuracoes: empresa.configuracoes as Record<string, unknown> | undefined,
-      createdAt: empresa.created_at,
-      updatedAt: empresa.updated_at
+      id: empresa[0].id,
+      nome: empresa[0].nome,
+      cnpj: empresa[0].cnpj,
+      nomeFantasia: empresa[0].nome_fantasia || undefined,
+      appKey: empresa[0].app_key,
+      appSecret: empresa[0].app_secret,
+      ativa: empresa[0].ativa,
+      configuracoes: empresa[0].configuracoes as Record<string, unknown> | undefined,
+      createdAt: empresa[0].created_at,
+      updatedAt: empresa[0].updated_at
     };
   }
 }

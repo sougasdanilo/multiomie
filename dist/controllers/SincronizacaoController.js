@@ -1,4 +1,4 @@
-import { prisma } from '../config/database.js';
+import { sql } from '../config/database.js';
 import { OmieIntegrationService } from '../integrations/OmieServices.js';
 import { agendarSincronizacaoProdutos, agendarProcessamentoPedido, agendarFaturamentoPedido } from '../jobs/queues.js';
 import { logger } from '../middlewares/logger.js';
@@ -14,8 +14,8 @@ export class SincronizacaoController {
                 res.status(400).json({ success: false, error: 'ID da empresa é obrigatório' });
                 return;
             }
-            const empresa = await prisma.empresa.findUnique({ where: { id: empresaId } });
-            if (!empresa) {
+            const empresa = await sql `SELECT * FROM empresas WHERE id = ${empresaId} LIMIT 1`;
+            if (!empresa.length) {
                 res.status(404).json({ success: false, error: 'Empresa não encontrada' });
                 return;
             }
@@ -46,8 +46,8 @@ export class SincronizacaoController {
                 res.status(400).json({ success: false, error: 'ID do pedido é obrigatório' });
                 return;
             }
-            const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
-            if (!pedido) {
+            const pedido = await sql `SELECT * FROM pedidos WHERE id = ${pedidoId} LIMIT 1`;
+            if (!pedido.length) {
                 res.status(404).json({ success: false, error: 'Pedido não encontrado' });
                 return;
             }
@@ -79,8 +79,8 @@ export class SincronizacaoController {
                 res.status(400).json({ success: false, error: 'ID do pedido é obrigatório' });
                 return;
             }
-            const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
-            if (!pedido) {
+            const pedido = await sql `SELECT * FROM pedidos WHERE id = ${pedidoId} LIMIT 1`;
+            if (!pedido.length) {
                 res.status(404).json({ success: false, error: 'Pedido não encontrado' });
                 return;
             }
@@ -106,7 +106,7 @@ export class SincronizacaoController {
     }
     async sincronizarClientesTodasEmpresas(req, res) {
         try {
-            const empresas = await prisma.empresa.findMany({ where: { ativa: true } });
+            const empresas = await sql `SELECT * FROM empresas WHERE ativa = true`;
             const resultados = [];
             for (const empresa of empresas) {
                 try {
@@ -161,10 +161,10 @@ export class SincronizacaoController {
                 res.status(400).json({ success: false, error: 'ID da empresa é obrigatório' });
                 return;
             }
-            const produtosEmpresa = await prisma.produtoEmpresa.findMany({
-                where: { empresa_id: empresaId },
-                select: { produto_id: true, codigo_omie: true }
-            });
+            const produtosEmpresa = await sql `
+        SELECT produto_id, codigo_omie FROM produto_empresa 
+        WHERE empresa_id = ${empresaId}
+      `;
             const jobs = [];
             for (const produto of produtosEmpresa) {
                 const job = await agendarSincronizacaoProdutos(empresaId);

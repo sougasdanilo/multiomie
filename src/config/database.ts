@@ -1,12 +1,40 @@
-import { PrismaClient } from '@prisma/client';
+import sql from './db.js';
 
-export const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error']
-});
+// Mock do prisma para compatibilidade durante migração
+const prisma = {
+  cliente: {
+    findUnique: async () => null,
+    create: async () => null,
+    findMany: async () => []
+  },
+  empresa: {
+    findMany: async () => [],
+    findUnique: async () => null
+  },
+  clienteEmpresa: {
+    findUnique: async () => null,
+    upsert: async () => null,
+    findMany: async () => []
+  },
+  pedido: {
+    findUnique: async () => null,
+    findMany: async () => [],
+    update: async () => null
+  },
+  notaFiscal: {
+    findMany: async () => []
+  },
+  produtoEmpresa: {
+    findMany: async () => []
+  },
+  $queryRaw: async () => null
+};
+
+export { sql, prisma };
 
 export async function connectDatabase(): Promise<void> {
   try {
-    await prisma.$connect();
+    await sql`SELECT 1`;
     console.log('✅ Database connected successfully');
   } catch (error) {
     console.error('❌ Database connection failed:', error);
@@ -15,5 +43,5 @@ export async function connectDatabase(): Promise<void> {
 }
 
 export async function disconnectDatabase(): Promise<void> {
-  await prisma.$disconnect();
+  await sql.end();
 }
